@@ -1,0 +1,4 @@
+node_modules/
+spike/ext/pyodide/
+spike/ext/wheels/
+spike/wheels/

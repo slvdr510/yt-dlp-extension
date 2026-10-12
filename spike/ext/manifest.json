@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "yt-dlp spike",
+  "version": "0.0.1",
+  "permissions": ["declarativeNetRequestWithHostAccess"],
+  "host_permissions": ["<all_urls>"],
+  "sandbox": { "pages": ["jsbox.html"] },
+  "content_security_policy": { "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'" }
+}
