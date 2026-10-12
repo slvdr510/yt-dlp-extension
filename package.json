@@ -6,5 +6,10 @@
     "@ffmpeg/core": "^0.12.10",
     "playwright": "^1.64.0",
     "pyodide": "^314.0.7"
+  },
+  "scripts": {
+    "vendor": "node scripts/vendor.mjs",
+    "test": "node --test 'test/unit/*.test.mjs'",
+    "test:e2e": "node --test --test-concurrency=1 'test/e2e/*.test.mjs'"
   }
 }

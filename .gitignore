@@ -1,4 +1,4 @@
 node_modules/
-spike/ext/pyodide/
-spike/ext/wheels/
-spike/wheels/
+extension/vendor/
+test/fixtures/out/
+dist/
