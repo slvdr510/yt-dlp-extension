@@ -5,7 +5,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const OUT = join(dirname(fileURLToPath(import.meta.url)), 'out');
-const VERSION = '4';
+const VERSION = '5';
 const ff = (args, cwd = OUT) => execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args], { cwd });
 const SRC = ['-f', 'lavfi', '-i', 'testsrc2=size=320x180:rate=24:duration=8', '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=8'];
 const ENC = ['-c:v', 'libx264', '-preset', 'ultrafast', '-g', '48', '-b:v', '1M', '-c:a', 'aac', '-b:a', '96k'];
@@ -35,6 +35,11 @@ export function makeFixtures() {
 <item><title>Second clip</title><enclosure url="clip2.mp4" type="video/mp4" length="1"/><link>clip2.mp4</link></item>
 </channel></rss>`);
   execFileSync('python3', [join(dirname(fileURLToPath(import.meta.url)), 'cookies.py'), join(OUT, 'cookies')]);
+  // HLS in codecs beyond H.264 + AAC: HEVC with AC-3, H.264 with 5.1 E-AC-3.
+  for (const [dir, codecs] of [['hls-hevc-ac3', ['-c:v', 'libx265', '-x265-params', 'log-level=error', '-c:a', 'ac3']], ['hls-h264-eac3', ['-c:v', 'libx264', '-c:a', 'eac3', '-ac', '6']]]) {
+    mkdirSync(join(OUT, dir), { recursive: true });
+    ff([...SRC, ...codecs, '-preset', 'ultrafast', '-g', '48', '-b:v', '600k', '-f', 'hls', '-hls_time', '2', '-hls_playlist_type', 'vod', '-hls_segment_filename', 's_%03d.ts', 'index.m3u8'], join(OUT, dir));
+  }
   writeFileSync(join(OUT, 'page.html'), '<!doctype html><title>Test clip S01E02</title><video src="clip.mp4" controls></video>');
   writeFileSync(stamp, VERSION);
   return OUT;
