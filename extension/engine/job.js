@@ -19,16 +19,22 @@ const sleep = (seconds, signal) =>
     signal?.addEventListener('abort', () => (clearTimeout(t), reject(signal.reason)), { once: true });
   });
 
-// Extracts following the user's login choice: 'never', 'always', or 'auto'
-// (without the login first; again with it if the site asks for one).
-export async function extractWithLogin(url, options, login) {
-  useCookies(login === 'always');
+// Extracts following the user's login choice (settings.login): 'never', 'always',
+// or 'auto' (without a login first; again with it if the site asks for one). The
+// login is the imported cookies (settings.cookies) if any, else this browser's.
+export async function extractWithLogin(url, options, settings) {
+  const { login, cookies } = settings;
+  const loggedIn = () => {
+    useCookies(!cookies);
+    return extract(url, cookies ? { ...options, cookies } : options);
+  };
+  if (login === 'always') return loggedIn();
+  useCookies(false);
   try {
     return await extract(url, options);
   } catch (e) {
     if (options.signal?.aborted || login !== 'auto' || !NEEDS_LOGIN.test(e.message)) throw e;
-    useCookies(true);
-    return await extract(url, options);
+    return loggedIn();
   }
 }
 
@@ -57,7 +63,7 @@ const dateOf = (info) => {
 // Resolves to { files: [{ blob, ext, name, cleanup }], notes, title }.
 export async function runVideo(job, { settings, signal, report, rules }) {
   report({ state: 'extracting' });
-  const info = await extractWithLogin(job.url, { format: videoSpec(settings), signal }, settings.login);
+  const info = await extractWithLogin(job.url, { format: videoSpec(settings), signal }, settings);
   if (info._type === 'playlist') throw new Error('This is a playlist: download it as one.');
   if (info.is_live) throw new Error('Live streams aren’t supported yet: try again when it has ended.');
   const music = job.mode === 'music' || (job.mode !== 'video' && isMusic(info));

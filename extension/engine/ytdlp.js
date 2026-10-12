@@ -4,9 +4,10 @@ import { loadPyodide } from '../vendor/pyodide/pyodide.mjs';
 
 // Request headers fetch() isn't allowed to set: session rules set them instead,
 // only for this extension's request to that host, while the request runs.
-const RULE_HEADERS = ['user-agent', 'origin', 'referer'];
-// Left to the browser: cookies (its own, so logins work), and the transport ones.
-const SKIP_HEADERS = ['cookie', 'host', 'content-length', 'connection', 'accept-encoding'];
+const RULE_HEADERS = ['user-agent', 'origin', 'referer', 'cookie'];
+// Left to the browser: the transport ones. A Cookie header (imported cookies) is
+// set by a rule too, and then the browser's own cookies stay out.
+const SKIP_HEADERS = ['host', 'content-length', 'connection', 'accept-encoding'];
 let nextRule = 1_000_000;
 
 // Every wait is bounded: a stuck step becomes an error, not a frozen download.
@@ -52,7 +53,8 @@ async function bridgeFetch(url, method, headers, body, timeout) {
   if (set.length) await toWorker({ cmd: 'addRule', rule: { id, priority: 2, action: { type: 'modifyHeaders', requestHeaders: set }, condition: { requestDomains: [new URL(url).hostname], initiatorDomains: [chrome.runtime.id], resourceTypes: ['xmlhttprequest'] } } });
   try {
     const signal = AbortSignal.any([AbortSignal.timeout(timeout * 1000), ...(extractionSignal ? [extractionSignal] : [])]);
-    const r = await fetch(url, { method, headers: pass, body: body ?? undefined, credentials: withCookies ? 'include' : 'omit', signal });
+    const ownCookies = withCookies && !set.some((h) => h.header === 'cookie');
+    const r = await fetch(url, { method, headers: pass, body: body ?? undefined, credentials: ownCookies ? 'include' : 'omit', signal });
     return { status: r.status, url: r.url, headers: Object.fromEntries(r.headers), body: new Uint8Array(await r.arrayBuffer()) };
   } finally {
     if (set.length) await toWorker({ cmd: 'removeRules', ids: [id] });
@@ -111,19 +113,19 @@ export function ytdlp() {
 // Extractions run one at a time (yt-dlp's Python isn't reentrant here).
 let extracting = Promise.resolve();
 
-export function extract(url, { format, playlist = false, signal = null } = {}) {
-  const run = extracting.then(() => extractNow(url, { format, playlist, signal }));
+export function extract(url, { format, playlist = false, signal = null, cookies = null } = {}) {
+  const run = extracting.then(() => extractNow(url, { format, playlist, signal, cookies }));
   extracting = run.catch(() => {});
   return run;
 }
 
-async function extractNow(url, { format, playlist, signal }) {
+async function extractNow(url, { format, playlist, signal, cookies }) {
   // A cancel doesn't wait for yt-dlp to finish loading.
   const aborted = signal && new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
   const { py } = await (aborted ? Promise.race([ytdlp(), aborted]) : ytdlp());
   signal?.throwIfAborted();
   extractionSignal = signal;
-  py.globals.set('_args', [url, JSON.stringify({ format, playlist })]);
+  py.globals.set('_args', [url, JSON.stringify({ format, playlist, cookies })]);
   let out;
   try {
     out = JSON.parse(await py.runPythonAsync('extract(*_args)'));
@@ -137,3 +139,30 @@ async function extractNow(url, { format, playlist, signal }) {
 
 // yt-dlp errors start with "ERROR: [extractor] id: ".
 const cleanError = (msg) => msg.replace(/^ERROR:\s*/, '').replace(/^\[[^\]]+\]\s*[^:]+:\s*/, '');
+
+// Reads cookies picked by the user. `files`: [{ name, bytes }]; kind as in glue.py.
+// Resolves to { text, count, domains }; throws with a readable message.
+export function importCookies(kind, files) {
+  const run = extracting.then(() => importNow(kind, files));
+  extracting = run.catch(() => {});
+  return run;
+}
+
+async function importNow(kind, files) {
+  const { py } = await ytdlp();
+  const dir = '/import';
+  try {
+    for (const name of py.FS.readdir(dir)) if (name !== '.' && name !== '..') py.FS.unlink(`${dir}/${name}`);
+  } catch (e) {
+    py.FS.mkdirTree(dir);
+  }
+  for (const f of files) {
+    // yt-dlp looks for these names: cookies.sqlite(-wal) for Firefox, Cookies for Chromium.
+    const name = kind === 'txt' ? 'cookies.txt' : kind === 'firefox' ? (f.name.endsWith('-wal') ? 'cookies.sqlite-wal' : 'cookies.sqlite') : 'Cookies';
+    py.FS.writeFile(`${dir}/${name}`, f.bytes);
+  }
+  py.globals.set('_kind', kind);
+  const out = JSON.parse(await py.runPythonAsync('import_cookies(_kind)'));
+  if (out.error) throw Object.assign(new Error(out.error), { log: out.log });
+  return out;
+}

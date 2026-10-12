@@ -2,7 +2,7 @@
 // keep going when the popup closes. Jobs run one at a time; playlists become one
 // job per video, with a pause between them. Saving and the job list for the
 // popup are the worker's.
-import { ytdlp, setRequestGap } from './engine/ytdlp.js';
+import { ytdlp, setRequestGap, importCookies } from './engine/ytdlp.js';
 import { summarize } from './engine/summary.js';
 import { runVideo, extractWithLogin, videoSpec, sleep } from './engine/job.js';
 import { cleanName } from './engine/names.js';
@@ -28,11 +28,12 @@ async function rules(hosts, headers) {
 
 const CACHE_MS = 10 * 60 * 1000;
 const cache = new Map();
-async function cachedExtract(url, options, login) {
-  const key = JSON.stringify([url, options]);
+async function cachedExtract(url, options, settings) {
+  // A different login can give a different result.
+  const key = JSON.stringify([url, options, settings.login, settings.cookies?.length || 0]);
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.info;
-  const info = await extractWithLogin(url, options, login);
+  const info = await extractWithLogin(url, options, settings);
   cache.set(key, { at: Date.now(), info });
   return info;
 }
@@ -73,7 +74,7 @@ const absolute = (url, base) => {
 
 async function expand(job, signal) {
   report(job.id, { state: 'extracting' });
-  const info = await extractWithLogin(job.url, { format: videoSpec(job.settings), playlist: true, signal }, job.settings.login);
+  const info = await extractWithLogin(job.url, { format: videoSpec(job.settings), playlist: true, signal }, job.settings);
   const entries = (info.entries || []).filter((e) => e && (e.url || e.webpage_url || e.id));
   if (!entries.length) throw new Error('The playlist is empty.');
   const width = String(entries.length).length;
@@ -115,7 +116,7 @@ async function runOne(job, signal) {
 
 const handlers = {
   async analyze({ url, playlist, settings }) {
-    const info = await cachedExtract(url, { format: videoSpec(settings), playlist: !!playlist }, settings.login);
+    const info = await cachedExtract(url, { format: videoSpec(settings), playlist: !!playlist }, settings);
     return { summary: summarize(info) };
   },
   async enqueue({ job }) {
@@ -135,6 +136,10 @@ const handlers = {
     temp.get(blobUrl)?.();
     temp.delete(blobUrl);
     return { ok: true };
+  },
+  async importCookies({ kind, files }) {
+    const decoded = files.map((f) => ({ name: f.name, bytes: Uint8Array.from(atob(f.data), (c) => c.charCodeAt(0)) }));
+    return importCookies(kind, decoded);
   },
   async versions() {
     return (await ytdlp()).versions;

@@ -10,6 +10,7 @@
   "scripts": {
     "vendor": "node scripts/vendor.mjs",
     "test": "node --test 'test/unit/*.test.mjs'",
-    "test:e2e": "node --test --test-concurrency=1 'test/e2e/*.test.mjs'"
+    "test:e2e": "node --test --test-concurrency=1 'test/e2e/*.test.mjs'",
+    "package": "node scripts/package.mjs"
   }
 }

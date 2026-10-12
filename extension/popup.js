@@ -1,6 +1,7 @@
 // The popup: analyzes the current tab with yt-dlp, offers the download, and
 // lists the downloads. Everything is shown with textContent (no HTML from pages).
 import { loadSettings, saveSettings } from './settings.js';
+import { BROWSERS, SYSTEMS, detectSystem, hintsFor } from './cookie-paths.js';
 
 const $ = (id) => document.getElementById(id);
 const send = async (cmd, data = {}) => {
@@ -209,6 +210,63 @@ function wireOptions() {
   bind('optSleepSubtitles', 'sleepSubtitles', seconds);
 }
 
+// ---------- logins from another browser ----------
+
+async function showImported() {
+  const { imported } = await send('importedCookies');
+  const line = $('importedNow');
+  line.replaceChildren();
+  if (!imported) {
+    line.textContent = 'Not set: this browser’s own logins are used.';
+    return;
+  }
+  const yt = imported.domains.some((d) => /(^|\.)youtube\.com$/.test(d));
+  line.append(
+    `Using ${imported.count} cookies from ${BROWSERS[imported.from]?.name || imported.from}${yt ? ' (YouTube included)' : ''}. `,
+    el('button', { className: 'link', textContent: 'Remove', onclick: async () => (await send('removeCookies'), showImported()) })
+  );
+}
+
+function showHints() {
+  const { paths, notes } = hintsFor($('impBrowser').value, $('impSystem').value);
+  $('impPaths').replaceChildren(...paths.map((p) => el('li', { textContent: p })));
+  $('impNotes').replaceChildren(...notes.map((n) => el('li', { textContent: n })));
+  $('impFile').accept = $('impBrowser').value === 'txt' ? '.txt' : '';
+}
+
+function wireImport() {
+  $('impBrowser').replaceChildren(...Object.entries(BROWSERS).map(([v, b]) => el('option', { value: v, textContent: b.name })));
+  $('impSystem').replaceChildren(...Object.entries(SYSTEMS).map(([v, name]) => el('option', { value: v, textContent: name })));
+  $('impSystem').value = detectSystem();
+  $('impBrowser').onchange = $('impSystem').onchange = showHints;
+  showHints();
+  $('impFile').onchange = async () => {
+    const picked = [...$('impFile').files];
+    if (!picked.length) return;
+    const result = $('impResult');
+    result.className = 'small muted';
+    result.textContent = 'Reading the cookies…';
+    try {
+      const files = await Promise.all(picked.map(async (f) => {
+        const bytes = new Uint8Array(await f.arrayBuffer());
+        let bin = '';
+        for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        return { name: f.name, data: btoa(bin) };
+      }));
+      const { imported } = await send('importCookies', { kind: $('impBrowser').value, files });
+      result.className = 'small ok';
+      result.textContent = `Imported ${imported.count} cookies.`;
+    } catch (e) {
+      result.className = 'small bad';
+      result.textContent = e.message;
+    } finally {
+      $('impFile').value = '';
+      showImported();
+    }
+  };
+  showImported();
+}
+
 $('gear').onclick = async () => {
   showOptions(true);
   send('versions')
@@ -220,6 +278,7 @@ $('back').onclick = () => showOptions(false);
 (async () => {
   state.settings = await loadSettings();
   wireOptions();
+  wireImport();
   renderJobs();
   analyze();
 })();

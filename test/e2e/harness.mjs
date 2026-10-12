@@ -47,6 +47,8 @@ export async function launch() {
     rmSync(downloads, { recursive: true, force: true });
   };
   process.on('exit', removeTemp);
+  // Also when the run is killed (a timeout, Ctrl+C): exit handlers alone don't run then.
+  for (const sig of ['SIGINT', 'SIGTERM']) process.once(sig, () => (removeTemp(), process.exit(130)));
   mkdirSync(join(profile, 'Default'), { recursive: true });
   writeFileSync(join(profile, 'Default', 'Preferences'), JSON.stringify({ download: { default_directory: downloads, prompt_for_download: false } }));
   const proc = spawn(chromium.executablePath(), [

@@ -4,10 +4,40 @@
   "version": "0.1.0",
   "description": "Download videos, music and subtitles from YouTube and 1000+ sites with yt-dlp, running inside your browser.",
   "minimum_chrome_version": "137",
-  "permissions": ["downloads", "storage", "unlimitedStorage", "offscreen", "declarativeNetRequestWithHostAccess"],
-  "host_permissions": ["<all_urls>"],
-  "background": { "service_worker": "background.js", "type": "module" },
-  "action": { "default_title": "yt-dlp Downloader", "default_popup": "popup.html" },
-  "sandbox": { "pages": ["jsbox.html"] },
-  "content_security_policy": { "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'" }
+  "permissions": [
+    "downloads",
+    "storage",
+    "unlimitedStorage",
+    "offscreen",
+    "declarativeNetRequestWithHostAccess"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "yt-dlp Downloader",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png"
+    }
+  },
+  "sandbox": {
+    "pages": [
+      "jsbox.html"
+    ]
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  }
 }

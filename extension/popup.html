@@ -69,6 +69,16 @@
       </select>
     </label>
     <p class="muted small">Logged-in downloads reach age-restricted and members-only videos, but heavy downloading with an account can get it flagged.</p>
+    <fieldset id="login">
+      <legend>Log in with another browser</legend>
+      <p id="importedNow" class="muted small"></p>
+      <label>Browser <select id="impBrowser"></select></label>
+      <label>System <select id="impSystem"></select></label>
+      <ul id="impPaths" class="paths small"></ul>
+      <ul id="impNotes" class="muted small notes"></ul>
+      <input id="impFile" type="file" multiple>
+      <p id="impResult" class="small"></p>
+    </fieldset>
     <fieldset>
       <legend>Pauses in playlists</legend>
       <label>Between videos, at least (s) <input id="optSleepMin" type="number" min="0" step="1"></label>

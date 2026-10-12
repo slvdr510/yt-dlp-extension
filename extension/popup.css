@@ -51,3 +51,7 @@ fieldset label { grid-template-columns: 1fr 70px; align-items: center; }
 .job .note { color: var(--muted); font-size: 12px; }
 .bar { height: 4px; background: var(--bar); border-radius: 2px; overflow: hidden; }
 .bar > div { height: 100%; background: var(--accent); width: 0; transition: width .3s; }
+.paths { margin: 0; padding-left: 16px; font-family: ui-monospace, monospace; word-break: break-all; display: grid; gap: 2px; }
+.notes { margin: 0; padding-left: 16px; display: grid; gap: 2px; }
+.ok { color: var(--ok); }
+.bad { color: var(--bad); }

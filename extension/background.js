@@ -2,9 +2,15 @@
 // chrome.downloads, adds header rules for the engine, and routes the popup's
 // requests to the engine (an offscreen document running yt-dlp).
 import { makeStore } from './lib/store.js';
-import { loadSettings } from './settings.js';
+import { loadSettings as loadSaved } from './settings.js';
 
 const ENDED = ['done', 'failed', 'cancelled'];
+
+// The settings plus the imported login cookies (kept apart: they're not a preference).
+async function loadSettings() {
+  const { imported } = await chrome.storage.local.get('imported');
+  return { ...(await loadSaved()), cookies: imported?.text || '' };
+}
 const jobsStore = makeStore('jobs');
 
 // ---------- the engine ----------
@@ -137,6 +143,26 @@ const handlers = {
     return { ok: true };
   },
   versions: () => toEngine({ cmd: 'versions' }),
+  // Logins from another browser: its cookies, read by yt-dlp, kept only in this extension.
+  async importCookies({ kind, files }) {
+    const res = await toEngine({ cmd: 'importCookies', kind, files });
+    if (res.error) return res;
+    if (!res.count) return { error: 'No cookies could be read from that file.', log: res.log };
+    const imported = { text: res.text, count: res.count, domains: res.domains, from: kind, at: Date.now() };
+    await chrome.storage.local.set({ imported });
+    const { text, ...summary } = imported;
+    return { imported: summary, log: res.log };
+  },
+  async importedCookies() {
+    const { imported } = await chrome.storage.local.get('imported');
+    if (!imported) return { imported: null };
+    const { text, ...summary } = imported;
+    return { imported: summary };
+  },
+  async removeCookies() {
+    await chrome.storage.local.remove('imported');
+    return { ok: true };
+  },
 };
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
