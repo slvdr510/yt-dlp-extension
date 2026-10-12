@@ -54,6 +54,18 @@ async function toEngine(msg) {
 
 // ---------- saving ----------
 
+// Names for the files being saved, by blob URL. When another extension listens to
+// onDeterminingFilename, Chrome drops the name given to downloads.download(), so
+// it's suggested again here (when several extensions suggest, the one installed
+// last wins). Other downloads are left alone.
+const names = new Map();
+chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
+  const filename = item.byExtensionId === chrome.runtime.id && names.get(item.url);
+  if (!filename) return suggest();
+  names.delete(item.url);
+  suggest({ filename, conflictAction: 'uniquify' });
+});
+
 // One job can save several files; it's done when all are.
 chrome.downloads.onChanged.addListener(async ({ id, state }) => {
   if (!state || state.current === 'in_progress') return;
@@ -110,6 +122,7 @@ const engineHandlers = {
   async save({ id, files }) {
     const saved = [];
     for (const f of files) {
+      names.set(f.blobUrl, f.filename);
       const downloadId = await chrome.downloads.download({ url: f.blobUrl, filename: f.filename, conflictAction: 'uniquify', saveAs: false });
       saved.push({ ...f, downloadId, state: 'in_progress' });
     }

@@ -93,7 +93,7 @@ async function fetchRetry(url, headers, signal, tries = 4) {
   for (let i = 1; ; i++) {
     try {
       const r = await fetch(url, { credentials: 'include', headers, signal });
-      if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status}`), { status: r.status });
+      if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status} from ${new URL(url).hostname}`), { status: r.status });
       return new Uint8Array(await r.arrayBuffer());
     } catch (e) {
       if (signal?.aborted || i >= tries || [401, 403, 404, 410].includes(e.status)) throw e;

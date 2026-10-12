@@ -32,15 +32,25 @@ function setMode(mode) {
   state.mode = mode;
   for (const b of document.querySelectorAll('.seg button')) b.setAttribute('aria-checked', String(b.dataset.mode === mode));
   const video = mode === 'video';
+  // Music swaps quality for the file format in the same place, so nothing moves.
   $('quality').classList.toggle('hidden', !video);
-  $('subsRow').classList.toggle('hidden', !video || !subtitleCount());
-  $('modeHint').textContent = video ? 'Best video and sound in one MP4, with subtitles and chapters.' : 'Sound only (M4A), with the cover art and song details embedded.';
+  $('format').classList.toggle('hidden', video);
+  $('subsRow').classList.toggle('hidden', !state.summary?.subtitles?.options.length);
+  $('subsRow').classList.toggle('invisible', !video);
+  showHint();
 }
 
-const subtitleCount = () => {
-  const s = state.summary?.subtitles;
-  return s ? s.creator.length + (s.auto && !s.creator.some((l) => s.auto.startsWith(l)) ? 1 : 0) : 0;
+const FORMAT_HINT = {
+  m4a: 'The original sound (M4A), with the cover art and song details embedded.',
+  mp3: 'Converted to MP3, which plays everywhere, with the cover art and song details.',
+  opus: 'The original Opus sound in the smallest file (.webm), without cover art.',
+  wav: 'Uncompressed WAV for audio editors: a big file, without cover art.',
 };
+
+function showHint() {
+  const subs = !$('subsRow').classList.contains('hidden') && $('subs').value;
+  $('modeHint').textContent = state.mode === 'video' ? `Best video and sound in one MP4, with ${subs ? 'subtitles and ' : ''}chapters.` : FORMAT_HINT[$('format').value];
+}
 
 function showSummary() {
   const s = state.summary;
@@ -66,8 +76,18 @@ function showSummary() {
     ...heights.filter((h) => h >= 240).map((h) => el('option', { value: String(h), textContent: `${h}p` }))
   );
   $('quality').value = String(state.settings.maxHeight && heights.includes(state.settings.maxHeight) ? state.settings.maxHeight : 0);
-  $('subs').checked = state.settings.subtitles;
-  $('subsLabel').textContent = `Subtitles (${subtitleCount()})`;
+  // Subtitles: none, or one language (the video's own by default).
+  const subs = s.subtitles || { options: [] };
+  const groups = { creator: 'Subtitles', auto: 'Automatic captions', translated: 'Auto-translated' };
+  $('subs').replaceChildren(
+    el('option', { value: '', textContent: 'No subtitles' }),
+    ...Object.entries(groups)
+      .map(([group, label]) => [label, subs.options.filter((o) => o.group === group)])
+      .filter(([, options]) => options.length)
+      .map(([label, options]) => el('optgroup', { label }, options.map((o) => el('option', { value: o.id, textContent: o.name }))))
+  );
+  $('subs').value = (state.settings.subtitles && subs.default) || '';
+  $('format').value = state.settings.audioFormat || 'm4a';
   const mode = state.settings.mode === 'auto' ? (s.music ? 'music' : 'video') : state.settings.mode;
   setMode(mode);
 }
@@ -100,13 +120,16 @@ async function analyze() {
 
 $('modeVideo').onclick = () => setMode('video');
 $('modeMusic').onclick = () => setMode('music');
+$('subs').onchange = showHint;
+$('format').onchange = showHint;
+$('help').onclick = () => showView('formats');
 
 $('go').onclick = async () => {
   $('go').disabled = true;
   try {
     const playlist = state.summary.kind === 'playlist' || document.querySelector('input[name=scope]:checked')?.value === 'playlist';
     // This download's choices (quality, subtitles) without changing the defaults.
-    const overrides = { maxHeight: Number($('quality').value) || 0, subtitles: $('subs').checked };
+    const overrides = { maxHeight: Number($('quality').value) || 0, subtitles: !!$('subs').value, subtitleTrack: $('subs').value || null, audioFormat: $('format').value };
     await send('download', { url: state.url, mode: state.mode, playlist, title: playlist ? (state.playlist || state.summary).title : state.summary.title, overrides });
   } catch (e) {
     $('status').textContent = e.message;
@@ -123,38 +146,70 @@ const STATE_TEXT = {
   extracting: 'Reading the video…',
   downloading: 'Downloading',
   writing: 'Putting the file together…',
+  converting: 'Converting',
   saving: 'Saving…',
   done: 'Done',
   failed: 'Failed',
   cancelled: 'Cancelled',
   expanded: 'Playlist',
 };
-const ACTIVE = ['queued', 'extracting', 'downloading', 'writing', 'saving', 'waiting', 'expanded'];
+const ACTIVE = ['queued', 'extracting', 'downloading', 'writing', 'converting', 'saving', 'waiting', 'expanded'];
+
+// Download speed per job, from the bytes reported between renders (smoothed).
+const speeds = new Map(); // id -> { bytes, at, rate }
+function speedOf(job) {
+  const now = Date.now();
+  const last = speeds.get(job.id);
+  const bytes = job.progress.bytes;
+  if (!last || bytes < last.bytes) return speeds.set(job.id, { bytes, at: now, rate: 0 }), 0;
+  if (now - last.at >= 700) {
+    const rate = ((bytes - last.bytes) / (now - last.at)) * 1000;
+    speeds.set(job.id, { bytes, at: now, rate: last.rate ? last.rate * 0.6 + rate * 0.4 : rate });
+  }
+  return speeds.get(job.id).rate;
+}
 
 function jobRow(job, child) {
   let text = STATE_TEXT[job.state] || job.state;
+  let detail = '';
   let pct = null;
   if (job.state === 'waiting') text = `Pausing ${Math.max(0, Math.ceil((job.until - Date.now()) / 1000))} s (playlist)`;
   if (job.state === 'downloading' && job.progress) {
     const { bytes, total, part, parts } = job.progress;
     pct = total ? Math.min(100, (bytes / total) * 100) : null;
-    text = [`Downloading${parts > 1 ? ` ${part}/${parts}` : ''}`, total ? `${formatSize(bytes)} of ${formatSize(total)}` : formatSize(bytes)].filter(Boolean).join(' · ');
+    const rate = speedOf(job);
+    text = `Downloading${parts > 1 ? ` ${part} of ${parts}` : ''}`;
+    detail = [total ? `${formatSize(bytes) || '0 KB'} of ${formatSize(total)}` : formatSize(bytes), rate ? `${formatSize(rate)}/s` : ''].filter(Boolean).join(' · ');
+  }
+  if (job.state === 'converting' && job.progress) {
+    text = `Converting to ${(job.format || '').toUpperCase()}…`;
+    pct = job.progress.total ? Math.min(100, (job.progress.done / job.progress.total) * 100) : null;
   }
   if (job.state === 'expanded' && job.progress) {
-    text = `Playlist · ${job.progress.done}/${job.progress.count}${job.progress.failed ? ` · ${job.progress.failed} failed` : ''}`;
+    text = `Playlist · ${job.progress.done} of ${job.progress.count}${job.progress.failed ? ` · ${job.progress.failed} failed` : ''}`;
     pct = (job.progress.done / job.progress.count) * 100;
   }
+  const active = ACTIVE.includes(job.state);
   const name = (job.playlist ? `${job.playlist.index}. ` : '') + (job.title || job.url);
   const actions = [];
-  if (ACTIVE.includes(job.state) && !(child && job.state === 'expanded')) {
+  if (active && !(child && job.state === 'expanded')) {
     actions.push(el('button', { className: 'link', textContent: 'Cancel', onclick: () => send('cancel', { id: job.id }) }));
   }
   if (job.state === 'done' && job.files?.[0]?.downloadId) {
     actions.push(el('button', { className: 'link', textContent: 'Show', onclick: () => chrome.downloads.show(job.files[0].downloadId) }));
   }
+  // Active jobs always have a bar: it moves on its own until there's a percentage.
+  // The list is redrawn on every update: the busy animation is timed off the clock so it doesn't restart.
+  const fill = pct === null ? `animation-delay:-${(Date.now() % 1200) / 1000}s` : `width:${pct}%`;
+  const bar = active ? el('div', { className: `bar${pct === null ? ' busy' : ''}` }, [el('div', { style: fill })]) : null;
   return el('li', { className: `job${child ? ' child' : ''}` }, [
-    el('div', { className: 'top' }, [el('span', { className: 'name', textContent: name, title: name }), el('span', { className: `state ${job.state}`, textContent: text }), ...actions]),
-    pct !== null ? el('div', { className: 'bar' }, [el('div', { style: `width:${pct}%` })]) : null,
+    el('div', { className: 'top' }, [el('span', { className: 'name', textContent: name, title: name }), ...actions]),
+    bar,
+    el('div', { className: 'status' }, [
+      el('span', { className: `state ${job.state}`, textContent: text }),
+      el('span', { className: 'detail', textContent: detail }),
+      pct !== null && active ? el('span', { className: 'pct', textContent: `${Math.floor(pct)}%` }) : null,
+    ]),
     job.error ? el('div', { className: 'error', textContent: job.error }) : null,
     ...(job.notes || []).map((n) => el('div', { className: 'note', textContent: n })),
   ]);
@@ -172,22 +227,22 @@ async function renderJobs() {
     for (const k of shown.slice(0, 5)) rows.push(jobRow(k, true));
   }
   $('jobs').replaceChildren(...rows);
-  $('noJobs').classList.toggle('hidden', rows.length > 0);
+  $('downloads').classList.toggle('hidden', rows.length === 0);
   $('clear').classList.toggle('hidden', !all.some((j) => !ACTIVE.includes(j.state)));
 }
 
 $('clear').onclick = () => send('clear');
 chrome.storage.onChanged.addListener((changes, area) => area === 'session' && changes.jobs && renderJobs());
-setInterval(() => document.querySelector('.state') && renderJobs(), 1000); // pause countdowns
+setInterval(() => document.querySelector('#jobs .bar') && renderJobs(), 1000); // countdowns and speeds
 
 // ---------- options ----------
 
-function showOptions(on) {
-  $('view-main').classList.toggle('hidden', on);
-  $('view-options').classList.toggle('hidden', !on);
-  $('back').classList.toggle('hidden', !on);
-  $('gear').classList.toggle('hidden', on);
-  $('heading').textContent = on ? 'Options' : 'yt-dlp Downloader';
+const VIEWS = { main: 'yt-dlp Downloader', options: 'Options', formats: 'Which format?' };
+function showView(view) {
+  for (const v of Object.keys(VIEWS)) $(`view-${v}`).classList.toggle('hidden', v !== view);
+  $('back').classList.toggle('hidden', view === 'main');
+  $('gear').classList.toggle('hidden', view !== 'main');
+  $('heading').textContent = VIEWS[view];
 }
 
 function wireOptions() {
@@ -202,6 +257,7 @@ function wireOptions() {
     };
   };
   bind('optQuality', 'maxHeight', (i) => Number(i.value), String);
+  bind('optFormat', 'audioFormat', (i) => i.value);
   bind('optCompatible', 'compatible', (i) => i.checked);
   bind('optSubtitles', 'subtitles', (i) => i.checked);
   bind('optLogin', 'login', (i) => i.value);
@@ -270,12 +326,12 @@ function wireImport() {
 }
 
 $('gear').onclick = async () => {
-  showOptions(true);
+  showView('options');
   send('versions')
     .then((v) => ($('versions').textContent = `yt-dlp ${v['yt-dlp']} · solver ${v['yt-dlp-ejs']} · Pyodide ${v.pyodide}`))
     .catch(() => {});
 };
-$('back').onclick = () => showOptions(false);
+$('back').onclick = () => showView('main');
 
 (async () => {
   state.settings = await loadSettings();

@@ -14,23 +14,77 @@ export function pickFormat(formats = []) {
   return null;
 }
 
-// Which tracks to embed: every subtitle the creator uploaded, plus the automatic
-// captions in the video's own language (not YouTube's 100+ machine translations).
+const base = (l) => l.replace(/-orig$/, '');
+const short = (l) => base(l).split('-')[0];
+const autoName = (name, lang) => `${(name || lang).replace(/ \(Original\)$/, '')} (auto)`;
+
+// The automatic captions in the video's own language: "<lang>-orig" is what was
+// spoken in each audio track (dubbed videos have several), so the one matching
+// info.language comes first. Null when there are none.
+export function originalAuto(info) {
+  const keys = Object.keys(info.automatic_captions || {});
+  const lang = info.language || '';
+  const same = (l) => lang && (base(l) === lang || short(l) === short(lang));
+  return keys.find((l) => l.endsWith('-orig') && same(l)) || keys.find(same) || keys.find((l) => l.endsWith('-orig')) || null;
+}
+
+// Every subtitle a video offers, for the popup's menu: [{ id, name, group }],
+// where group is 'creator' (uploaded), 'auto' (automatic, as spoken) or
+// 'translated' (YouTube's machine translations). The id is what chooseTracks takes.
+export function subtitleOptions(info) {
+  const out = [];
+  for (const [lang, formats] of Object.entries(info.subtitles || {})) {
+    if (lang !== 'live_chat' && pickFormat(formats)) out.push({ id: `c:${lang}`, name: formats.find((f) => f.name)?.name || lang, group: 'creator' });
+  }
+  const auto = info.automatic_captions || {};
+  const original = originalAuto(info);
+  const spoken = Object.keys(auto).filter((l) => (l.endsWith('-orig') || l === original) && pickFormat(auto[l]));
+  spoken.sort((x, y) => (y === original) - (x === original));
+  for (const l of spoken) out.push({ id: `a:${l}`, name: autoName(auto[l][0]?.name, base(l)), group: 'auto' });
+  const said = new Set(spoken.map(short));
+  const translated = Object.entries(auto)
+    .filter(([l, formats]) => !l.endsWith('-orig') && l !== original && !said.has(short(l)) && pickFormat(formats))
+    .map(([l, formats]) => ({ id: `a:${l}`, name: formats[0]?.name || l, group: 'translated' }));
+  return out.concat(translated.sort((x, y) => x.name.localeCompare(y.name)));
+}
+
+// The menu's default: the creator's subtitles in the video's language, else the
+// automatic ones in that language, else the creator's first. Null if none.
+export function defaultSubtitle(info) {
+  const options = subtitleOptions(info);
+  const lang = info.language || '';
+  const creator = options.filter((o) => o.group === 'creator');
+  const original = originalAuto(info);
+  return (
+    (lang && creator.find((o) => short(o.id.slice(2)) === short(lang))?.id) ||
+    (original && `a:${original}`) ||
+    creator[0]?.id ||
+    null
+  );
+}
+
+// Which tracks to embed. With `pick` (an id from subtitleOptions), that one, when
+// the video has it. Otherwise every subtitle the creator uploaded, plus the
+// automatic captions in the video's own language (not the machine translations).
 // Returns [{ lang, auto, name, format }], the creator's first.
-export function chooseTracks(info) {
+export function chooseTracks(info, pick = null) {
+  const auto = info.automatic_captions || {};
+  if (pick) {
+    const [kind, lang] = [pick.slice(0, 1), pick.slice(2)];
+    const formats = kind === 'c' ? info.subtitles?.[lang] : auto[lang];
+    const format = pickFormat(formats);
+    if (format) return [{ lang: base(lang), auto: kind === 'a', name: kind === 'a' ? autoName(format.name, base(lang)) : format.name || lang, format }];
+  }
   const out = [];
   for (const [lang, formats] of Object.entries(info.subtitles || {})) {
     if (lang === 'live_chat') continue;
     const format = pickFormat(formats);
     if (format) out.push({ lang, auto: false, name: format.name || lang, format });
   }
-  const auto = info.automatic_captions || {};
-  const keys = Object.keys(auto);
-  const original = keys.find((l) => l.endsWith('-orig')) || (info.language && keys.find((l) => l === info.language || l.startsWith(`${info.language}-`)));
-  const base = (l) => l.replace(/-orig$/, '');
+  const original = originalAuto(info);
   if (original && !out.some((t) => t.lang === base(original))) {
     const format = pickFormat(auto[original]);
-    if (format) out.push({ lang: base(original), auto: true, name: `${format.name || base(original)} (auto)`.replace(/ \(auto\) \(auto\)$/, ' (auto)'), format });
+    if (format) out.push({ lang: base(original), auto: true, name: autoName(format.name, base(original)), format });
   }
   return out;
 }

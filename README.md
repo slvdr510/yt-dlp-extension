@@ -44,7 +44,8 @@ The gear in the popup opens the options:
 
 ```sh
 npm install           # Pyodide, Playwright and its Chromium (for the tests)
-npm run vendor        # puts the yt-dlp version from versions.json into extension/vendor
+npm run vendor        # puts the yt-dlp version from versions.json (and the MP3 encoder) into extension/vendor
+npm run dev           # dist/extension, kept in sync with extension/ (load it unpacked)
 npm test              # unit tests (MP4 writer, subtitles)
 npm run test:e2e      # the real extension in Chromium, against local test media
 ONLINE=1 npm run test:e2e   # also real YouTube downloads

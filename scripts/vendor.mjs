@@ -48,6 +48,11 @@ const installed = JSON.parse(readFileSync(join(pyodideDir, 'package.json'), 'utf
 if (installed !== versions.pyodide) throw new Error(`node_modules has Pyodide ${installed}, versions.json wants ${versions.pyodide}: run npm install`);
 for (const f of ['pyodide.mjs', 'pyodide.asm.mjs', 'pyodide.asm.wasm', 'python_stdlib.zip', 'pyodide-lock.json']) copyFileSync(join(pyodideDir, f), join(VENDOR, 'pyodide', f));
 
+// lamejs, the MP3 encoder for music saved as MP3 (LGPL: its license goes along).
+const lame = join(ROOT, 'node_modules/@breezystack/lamejs');
+copyFileSync(join(lame, 'dist/lamejs.js'), join(VENDOR, 'lamejs.js'));
+copyFileSync(join(lame, 'LICENSE'), join(VENDOR, 'lamejs.LICENSE'));
+
 const ytdlp = await wheel('yt-dlp', versions['yt-dlp']);
 // yt-dlp checks the challenge-solver scripts against the yt-dlp-ejs version it was released with.
 const ejsVersion = unzipFile(ytdlp.bytes, 'yt_dlp/extractor/youtube/jsc/_builtin/vendor/_info.py').match(/VERSION\s*=\s*'([^']+)'/)[1];

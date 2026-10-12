@@ -9,6 +9,7 @@ import { coverFrom } from './thumb.js';
 import { isMusic } from './summary.js';
 import { cleanName } from './names.js';
 import { indexBlob } from '../lib/fmp4.js';
+import { convertAudio } from './audio.js';
 
 // Errors that mean the site wants the user to be logged in.
 const NEEDS_LOGIN = /sign in|age[- ]restrict|inappropriate|members|private video|confirm (you|your)|log ?in|login required/i;
@@ -41,10 +42,12 @@ export async function extractWithLogin(url, options, settings) {
 // The video spec used for analysis and downloads, so one extraction serves both.
 export const videoSpec = (settings) => formatSpec({ mode: 'video', maxHeight: settings.maxHeight, compatible: settings.compatible });
 
-// The best audio-only format we can download, M4A/AAC first. Null if there's none.
-function bestAudio(formats = []) {
+// The best audio-only format we can download, M4A/AAC first (Opus first with
+// `opus`). Null if there's none.
+const isOpus = (f) => /^opus/.test(f.acodec || '');
+function bestAudio(formats = [], opus = false) {
   const ok = formats.filter((f) => f.vcodec === 'none' && f.acodec !== 'none' && f.url && PROTOCOLS.includes(f.protocol || 'https'));
-  const rank = (f) => [f.ext === 'm4a' ? 2 : /^mp4a/.test(f.acodec || '') ? 1 : 0, f.abr || f.tbr || 0];
+  const rank = (f) => [opus && isOpus(f) ? 3 : f.ext === 'm4a' ? 2 : /^mp4a/.test(f.acodec || '') ? 1 : 0, f.abr || f.tbr || 0];
   ok.sort((a, b) => {
     const [x, y] = [rank(a), rank(b)];
     return y[0] - x[0] || y[1] - x[1];
@@ -69,11 +72,12 @@ export async function runVideo(job, { settings, signal, report, rules }) {
   const music = job.mode === 'music' || (job.mode !== 'video' && isMusic(info));
   report({ title: info.title, music });
 
-  // What to download.
+  // What to download. Music: settings.audioFormat says how it's saved.
+  const audioFormat = settings.audioFormat || 'm4a';
   const requested = info.requested_formats || [info];
   let formats = requested;
   if (music) {
-    const audio = bestAudio(info.formats);
+    const audio = bestAudio(info.formats, audioFormat === 'opus');
     formats = audio ? [audio] : [requested[requested.length - 1]];
   }
 
@@ -102,9 +106,15 @@ export async function runVideo(job, { settings, signal, report, rules }) {
     const base = cleanName(music && artistOf(info) && info.track ? `${artistOf(info)} - ${info.track}` : title);
     const notes = [];
 
+    // Opus: the site's own file, as it is.
+    if (music && audioFormat === 'opus' && files.length === 1 && isOpus(files[0].format)) {
+      return { title: info.title, notes, files: [{ blob: files[0].blob, cleanup: files[0].cleanup, ext: files[0].ext || 'webm', name: base }] };
+    }
+    if (music && audioFormat === 'opus') notes.push('There’s no Opus audio for this one: it was saved in the best format there is.');
+
     // Formats MP4 can't hold (WebM, TS…): keep the original files.
     if (!files.every((f) => f.mp4)) {
-      notes.push('The best format here can’t be joined into MP4, so the original files were saved as they are.');
+      notes.push(music && ['mp3', 'wav'].includes(audioFormat) ? `This audio can’t be converted to ${audioFormat.toUpperCase()}, so the original file was saved as it is.` : 'The best format here can’t be joined into MP4, so the original files were saved as they are.');
       return {
         title: info.title,
         notes,
@@ -124,7 +134,7 @@ export async function runVideo(job, { settings, signal, report, rules }) {
     if (!tracks.length) throw new Error('The downloaded file has no usable tracks.');
 
     if (!music && settings.subtitles) {
-      const chosen = chooseTracks(info);
+      const chosen = chooseTracks(info, settings.subtitleTrack);
       for (let i = 0; i < chosen.length; i++) {
         const t = chosen[i];
         if (i && settings.sleepSubtitles) await sleep(settings.sleepSubtitles, signal);
@@ -151,8 +161,13 @@ export async function runVideo(job, { settings, signal, report, rules }) {
       cover,
     };
     const chapters = (info.chapters || []).map((c) => ({ start: c.start_time || 0, title: c.title || '' }));
-    const blob = writeMp4({ tracks, meta, chapters, audioOnly: music });
     const cleanup = () => files.forEach((f) => f.cleanup());
+    if (music && ['mp3', 'wav'].includes(audioFormat)) {
+      report({ state: 'converting', format: audioFormat, progress: { done: 0, total: 1 } });
+      const blob = await convertAudio(audioFormat, { track: tracks[0], blob: tracks[0].blob, meta, signal, onProgress: (done, total) => report({ progress: { done, total } }) });
+      return { title: info.title, notes, files: [{ blob, ext: audioFormat, name: base, cleanup }] };
+    }
+    const blob = writeMp4({ tracks, meta, chapters, audioOnly: music });
     return { title: info.title, notes, files: [{ blob, ext: music ? 'm4a' : 'mp4', name: base, cleanup }] };
   } catch (e) {
     files.forEach((f) => f.cleanup());

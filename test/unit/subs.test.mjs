@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chooseTracks, parseVtt, parseJson3, pickFormat } from '../../extension/engine/subs.js';
+import { chooseTracks, subtitleOptions, defaultSubtitle, parseVtt, parseJson3, pickFormat } from '../../extension/engine/subs.js';
+import { plainSides } from '../../extension/engine/thumb.js';
 
 test('picks the creator subtitles and only the original automatic captions', () => {
   const fmt = (ext) => [{ ext: 'srv3', url: 'x' }, { ext, url: `u-${ext}`, name: 'N' }];
@@ -16,6 +17,44 @@ test('picks the creator subtitles and only the original automatic captions', () 
   assert.deepEqual(t2.map((x) => [x.lang, x.auto]), [['en', true]]);
   assert.equal(t2[0].name, 'N (auto)');
   assert.equal(pickFormat([{ ext: 'ttml', url: 'x' }]), null);
+});
+
+test('dubbed videos: the automatic captions in the video\'s own language come first', () => {
+  const fmt = (name) => [{ ext: 'json3', url: 'u', name }];
+  const info = {
+    language: 'es-US',
+    subtitles: {},
+    automatic_captions: { 'ar-orig': fmt('Arabic (Original)'), ar: fmt('Arabic'), es: fmt('Spanish'), 'es-orig': fmt('Spanish (Original)'), 'en-orig': fmt('English (Original)'), fr: fmt('French'), de: fmt('German') },
+  };
+  assert.deepEqual(chooseTracks(info).map((t) => [t.lang, t.name]), [['es', 'Spanish (auto)']]);
+  assert.equal(defaultSubtitle(info), 'a:es-orig');
+  assert.deepEqual(subtitleOptions(info).map((o) => [o.id, o.group]), [
+    ['a:es-orig', 'auto'], ['a:ar-orig', 'auto'], ['a:en-orig', 'auto'], ['a:fr', 'translated'], ['a:de', 'translated'],
+  ]);
+  assert.deepEqual(chooseTracks(info, 'a:fr').map((t) => [t.lang, t.auto]), [['fr', true]]);
+  // A pick the video doesn't have falls back to the default choice.
+  assert.deepEqual(chooseTracks(info, 'c:it').map((t) => t.lang), ['es']);
+});
+
+test('the creator\'s subtitles in the video\'s language are the default', () => {
+  const fmt = (name) => [{ ext: 'vtt', url: 'u', name }];
+  const info = { language: 'en', subtitles: { de: fmt('German'), 'en-GB': fmt('English') }, automatic_captions: { 'en-orig': fmt('English (Original)') } };
+  assert.equal(defaultSubtitle(info), 'c:en-GB');
+  assert.deepEqual(subtitleOptions(info).map((o) => o.id), ['c:de', 'c:en-GB', 'a:en-orig']);
+  assert.equal(defaultSubtitle({ subtitles: {}, automatic_captions: {} }), null);
+});
+
+test('covers: album art in plain side bars is cropped, pictures are kept whole', () => {
+  const image = (sides) => {
+    const width = 64, height = 36, data = new Uint8ClampedArray(width * height * 4);
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4, inner = x >= 14 && x < 50;
+      data.fill(inner || !sides ? (x * 37 + y * 91) % 256 : 20, i, i + 3);
+    }
+    return { data, width, height };
+  };
+  assert.equal(plainSides(image(true)), true);
+  assert.equal(plainSides(image(false)), false);
 });
 
 test('WebVTT: tags, entities, and YouTube scrolling repeats', () => {

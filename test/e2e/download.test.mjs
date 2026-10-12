@@ -48,6 +48,19 @@ test('music mode saves the sound only, as M4A', async () => {
   assert.ok(near(p.duration, 8));
 });
 
+for (const [format, codec] of [['mp3', 'mp3'], ['wav', 'pcm_s16le']]) {
+  test(`music can be converted to ${format.toUpperCase()}`, async () => {
+    const { job, files } = await download('clip.mp4', { mode: 'music', overrides: { audioFormat: format } });
+    assert.equal(job.state, 'done', job.error);
+    assert.match(files[0], new RegExp(`clip\\.${format}$`));
+    const p = probe(files[0]);
+    assert.deepEqual(p.streams.filter((s) => !s.disposition?.attached_pic).map((s) => s.codec), [codec]);
+    assert.ok(near(p.duration, 8, 0.15), `duration ${p.duration}`);
+    assert.equal(p.tags.title, 'clip');
+    assert.equal(decodeErrors(files[0]), '');
+  });
+}
+
 test('HLS streams are downloaded and converted', async () => {
   const { job, files } = await download('hls/index.m3u8', { mode: 'video' });
   assert.equal(job.state, 'done', job.error);
@@ -129,7 +142,7 @@ test('YouTube video: best quality, subtitles, chapters-ready MP4 (online)', onli
   assert.equal(decodeErrors(file), '');
 });
 
-test('YouTube music: sound only, square cover, song details (online)', online, async () => {
+test('YouTube music: sound only, cover, song details (online)', online, async () => {
   const { id } = await b.send({ cmd: 'download', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', mode: 'auto' });
   const job = await b.job(id, ['done', 'failed', 'cancelled'], 180000);
   assert.equal(job.state, 'done', job.error);
@@ -138,7 +151,8 @@ test('YouTube music: sound only, square cover, song details (online)', online, a
   assert.match(file, /\.m4a$/);
   const p = probe(file);
   const cover = p.streams.find((s) => s.disposition?.attached_pic);
-  assert.ok(cover && cover.width === cover.height, `cover ${cover?.width}x${cover?.height}`);
+  // An official video's thumbnail is a picture, not album art in bars: kept whole.
+  assert.ok(cover && cover.width > cover.height, `cover ${cover?.width}x${cover?.height}`);
   assert.ok(p.tags.artist, 'artist');
   assert.ok(near(p.duration, 213, 3), `duration ${p.duration}`);
   assert.equal(decodeErrors(file), '');

@@ -35,7 +35,7 @@ export async function downloadFile({ url, sink, signal, onProgress, size = 0, ch
       continue;
     }
     if (r.status === 416 && total && bytes >= total) break; // asked past the end: nothing left
-    if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status}`), { status: r.status });
+    if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status} from ${new URL(url).hostname}`), { status: r.status });
     const partial = r.status === 206;
     if (bytes && !partial) throw new Error('The connection dropped and the server can’t resume the download.');
     if (partial && Number(r.headers.get('content-range')?.match(/bytes (\d+)-/)?.[1] ?? bytes) !== bytes) {

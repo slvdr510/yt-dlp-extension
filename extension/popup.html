@@ -27,23 +27,44 @@
         <label class="radio"><input type="radio" name="scope" value="video" checked> This video</label>
         <label class="radio"><input type="radio" name="scope" value="playlist"> <span id="scopeList">Whole playlist</span></label>
       </div>
-      <div class="row">
+      <div class="row controls">
         <div class="seg" role="radiogroup" aria-label="What to download">
           <button id="modeVideo" role="radio" data-mode="video">Video</button>
           <button id="modeMusic" role="radio" data-mode="music">Music</button>
         </div>
         <select id="quality" aria-label="Quality"></select>
+        <select id="format" class="hidden" aria-label="File format">
+          <option value="m4a">M4A</option>
+          <option value="mp3">MP3</option>
+          <option value="opus">Opus</option>
+          <option value="wav">WAV</option>
+        </select>
+        <button id="help" class="help" title="Which format should I pick?" aria-label="Which format should I pick?">?</button>
       </div>
-      <label id="subsRow" class="check"><input id="subs" type="checkbox"> <span id="subsLabel">Subtitles</span></label>
+      <label id="subsRow" class="row controls"><span class="muted">Subtitles</span><select id="subs" aria-label="Subtitles"></select></label>
       <p id="modeHint" class="muted small"></p>
       <button id="go" class="primary">Download</button>
     </div>
   </section>
 
-  <section>
+  <section id="downloads" class="hidden">
     <div class="row between"><h2>Downloads</h2><button id="clear" class="link hidden">Clear finished</button></div>
     <ul id="jobs"></ul>
-    <p id="noJobs" class="muted small">Nothing yet.</p>
+  </section>
+</main>
+
+<main id="view-formats" class="hidden">
+  <section class="card">
+    <p class="small">Video is always saved as <b>MP4</b>: it plays everywhere and holds the subtitles, chapters and cover. For <b>Music</b>, pick the file type:</p>
+    <table class="formats small">
+      <thead><tr><th>Format</th><th>Pick it when</th><th>Keep in mind</th></tr></thead>
+      <tbody>
+        <tr><th>M4A <span class="tag">default</span></th><td>You want the best sound: it’s YouTube’s own audio (AAC), not converted. Phones, computers, VLC and modern cars play it.</td><td>Some old car stereos and MP3 players can’t open it.</td></tr>
+        <tr><th>MP3</th><td>It has to play on anything, or a program or site only takes MP3.</td><td>Converted from the original, so a little quality is lost; bigger file, and it takes a moment more.</td></tr>
+        <tr><th>Opus</th><td>You want the original in the smallest file: YouTube’s Opus audio, not converted (a .webm file).</td><td>No cover or song details inside. Browsers, VLC and Android play it; Apple devices and many players don’t.</td></tr>
+        <tr><th>WAV</th><td>You’ll edit it in an audio editor or DAW.</td><td>Uncompressed: about 10 times bigger, with no better sound than M4A. No cover inside.</td></tr>
+      </tbody>
+    </table>
   </section>
 </main>
 
@@ -57,6 +78,14 @@
         <option value="1080">Up to 1080p</option>
         <option value="720">Up to 720p</option>
         <option value="480">Up to 480p</option>
+      </select>
+    </label>
+    <label>When it’s music, save it as
+      <select id="optFormat">
+        <option value="m4a">M4A (original sound)</option>
+        <option value="mp3">MP3 (plays everywhere)</option>
+        <option value="opus">Opus (original, smallest)</option>
+        <option value="wav">WAV (for editing)</option>
       </select>
     </label>
     <label class="check"><input id="optCompatible" type="checkbox"> Prefer H.264 video (plays on every device; the best quality is often AV1 or VP9)</label>
