@@ -38,7 +38,7 @@ button { cursor: pointer; }
 .options label { display: grid; gap: 4px; }
 .options label.check { display: flex; }
 fieldset { border: 1px solid var(--line); border-radius: 8px; display: grid; gap: 8px; padding: 8px 10px; }
-fieldset label { grid-template-columns: 1fr 70px; align-items: center; }
+.pauses label { grid-template-columns: 1fr 70px; align-items: center; }
 #jobs { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .job { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: grid; gap: 4px; }
 .job.child { margin-left: 14px; }

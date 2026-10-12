@@ -83,7 +83,9 @@ async function analyze() {
     const { summary } = await send('analyze', { url: state.url });
     state.summary = summary;
     // A video in a playlist: learn the playlist's size too (fast, flat listing).
-    if (summary.kind === 'video' && /[?&]list=/.test(state.url)) {
+    // Not for YouTube Mixes (list=RD…): they're endless radio lists, not playlists.
+    const list = new URL(state.url).searchParams.get('list') || '';
+    if (summary.kind === 'video' && list && !list.startsWith('RD')) {
       send('analyze', { url: state.url, playlist: true })
         .then(({ summary: p }) => {
           if (p.kind === 'playlist') (state.playlist = p), showSummary();
