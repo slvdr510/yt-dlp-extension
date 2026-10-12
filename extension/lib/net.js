@@ -17,14 +17,18 @@ function totalOf(r, offset) {
 // so a dropped connection resumes where it stopped and servers that answer a
 // range only in part (some CDNs cap each answer) still give the whole file.
 // Resolves to the number of bytes written.
-export async function downloadFile({ url, sink, signal, onProgress, size = 0 }) {
+// With `chunkSize`, each request asks for at most that many bytes (some sites,
+// YouTube among them, throttle requests for a whole large file). `headers` are
+// sent with every request.
+export async function downloadFile({ url, sink, signal, onProgress, size = 0, chunkSize = 0, headers = {} }) {
   let bytes = 0;
   let total = size;
   let resumes = 0;
   for (;;) {
     let r;
     try {
-      r = await fetch(url, { credentials: 'include', signal, headers: { Range: `bytes=${bytes}-` } });
+      const end = chunkSize ? bytes + chunkSize - 1 : '';
+      r = await fetch(url, { credentials: 'include', signal, headers: { ...headers, Range: `bytes=${bytes}-${end}` } });
     } catch (e) {
       if (signal?.aborted || !bytes || ++resumes > MAX_RESUMES) throw e;
       await pause(resumes, signal);

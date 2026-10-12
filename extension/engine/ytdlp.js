@@ -9,11 +9,18 @@ const RULE_HEADERS = ['user-agent', 'origin', 'referer'];
 const SKIP_HEADERS = ['cookie', 'host', 'content-length', 'connection', 'accept-encoding'];
 let nextRule = 1_000_000;
 
+// Every wait is bounded: a stuck step becomes an error, not a frozen download.
+const within = (promise, seconds, what) =>
+  Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(`${what} timed out`)), seconds * 1000))]);
+
 const toWorker = async (msg) => {
-  const res = await chrome.runtime.sendMessage({ target: 'worker', ...msg });
+  const res = await within(chrome.runtime.sendMessage({ target: 'worker', ...msg }), 15, 'The extension worker');
   if (res?.error) throw new Error(res.error);
   return res;
 };
+
+// The running extraction's cancel signal: aborting it fails yt-dlp's requests at once.
+let extractionSignal = null;
 
 // Pause between yt-dlp's requests (seconds), so sites aren't hammered. Set from the settings.
 let requestGap = 0;
@@ -44,7 +51,8 @@ async function bridgeFetch(url, method, headers, body, timeout) {
   // Offscreen documents have no declarativeNetRequest: the worker adds the rule.
   if (set.length) await toWorker({ cmd: 'addRule', rule: { id, priority: 2, action: { type: 'modifyHeaders', requestHeaders: set }, condition: { requestDomains: [new URL(url).hostname], initiatorDomains: [chrome.runtime.id], resourceTypes: ['xmlhttprequest'] } } });
   try {
-    const r = await fetch(url, { method, headers: pass, body: body ?? undefined, credentials: withCookies ? 'include' : 'omit', signal: AbortSignal.timeout(timeout * 1000) });
+    const signal = AbortSignal.any([AbortSignal.timeout(timeout * 1000), ...(extractionSignal ? [extractionSignal] : [])]);
+    const r = await fetch(url, { method, headers: pass, body: body ?? undefined, credentials: withCookies ? 'include' : 'omit', signal });
     return { status: r.status, url: r.url, headers: Object.fromEntries(r.headers), body: new Uint8Array(await r.arrayBuffer()) };
   } finally {
     if (set.length) await toWorker({ cmd: 'removeRules', ids: [id] });
@@ -68,10 +76,11 @@ const box = (() => {
   return async (code) => {
     await loaded;
     const id = ++next;
-    return new Promise((resolve) => {
+    const reply = new Promise((resolve) => {
       pending.set(id, resolve);
       frame.contentWindow.postMessage({ id, code }, '*');
     });
+    return within(reply, 60, 'Solving YouTube’s JavaScript challenge').catch((e) => (pending.delete(id), { out: '', err: e.message }));
   };
 })();
 
@@ -99,10 +108,29 @@ export function ytdlp() {
 }
 
 // Extracts a URL. Resolves to yt-dlp's info dict; throws with yt-dlp's message on failure.
-export async function extract(url, { format, playlist = false } = {}) {
-  const { py, extract: run } = await ytdlp();
+// Extractions run one at a time (yt-dlp's Python isn't reentrant here).
+let extracting = Promise.resolve();
+
+export function extract(url, { format, playlist = false, signal = null } = {}) {
+  const run = extracting.then(() => extractNow(url, { format, playlist, signal }));
+  extracting = run.catch(() => {});
+  return run;
+}
+
+async function extractNow(url, { format, playlist, signal }) {
+  // A cancel doesn't wait for yt-dlp to finish loading.
+  const aborted = signal && new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
+  const { py } = await (aborted ? Promise.race([ytdlp(), aborted]) : ytdlp());
+  signal?.throwIfAborted();
+  extractionSignal = signal;
   py.globals.set('_args', [url, JSON.stringify({ format, playlist })]);
-  const out = JSON.parse(await py.runPythonAsync('extract(*_args)'));
+  let out;
+  try {
+    out = JSON.parse(await py.runPythonAsync('extract(*_args)'));
+  } finally {
+    extractionSignal = null;
+  }
+  signal?.throwIfAborted();
   if (out.error) throw Object.assign(new Error(cleanError(out.error)), { log: out.log });
   return out.info;
 }

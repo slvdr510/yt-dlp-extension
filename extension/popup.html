@@ -1,4 +1,84 @@
 <!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
 <title>yt-dlp Downloader</title>
-<body></body>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<header>
+  <button id="back" class="icon hidden" title="Back" aria-label="Back">←</button>
+  <h1 id="heading">yt-dlp Downloader</h1>
+  <button id="gear" class="icon" title="Options" aria-label="Options">⚙</button>
+</header>
+
+<main id="view-main">
+  <section id="card" class="card">
+    <p id="status" class="muted">Reading this page…</p>
+    <div id="found" class="hidden">
+      <div class="media">
+        <img id="thumb" alt="">
+        <div class="meta">
+          <div id="title" class="title"></div>
+          <div id="sub" class="muted small"></div>
+        </div>
+      </div>
+      <div id="scope" class="row hidden">
+        <label class="radio"><input type="radio" name="scope" value="video" checked> This video</label>
+        <label class="radio"><input type="radio" name="scope" value="playlist"> <span id="scopeList">Whole playlist</span></label>
+      </div>
+      <div class="row">
+        <div class="seg" role="radiogroup" aria-label="What to download">
+          <button id="modeVideo" role="radio" data-mode="video">Video</button>
+          <button id="modeMusic" role="radio" data-mode="music">Music</button>
+        </div>
+        <select id="quality" aria-label="Quality"></select>
+      </div>
+      <label id="subsRow" class="check"><input id="subs" type="checkbox"> <span id="subsLabel">Subtitles</span></label>
+      <p id="modeHint" class="muted small"></p>
+      <button id="go" class="primary">Download</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="row between"><h2>Downloads</h2><button id="clear" class="link hidden">Clear finished</button></div>
+    <ul id="jobs"></ul>
+    <p id="noJobs" class="muted small">Nothing yet.</p>
+  </section>
+</main>
+
+<main id="view-options" class="hidden">
+  <section class="card options">
+    <label>When it’s a video, quality
+      <select id="optQuality">
+        <option value="0">Best available</option>
+        <option value="2160">Up to 4K (2160p)</option>
+        <option value="1440">Up to 1440p</option>
+        <option value="1080">Up to 1080p</option>
+        <option value="720">Up to 720p</option>
+        <option value="480">Up to 480p</option>
+      </select>
+    </label>
+    <label class="check"><input id="optCompatible" type="checkbox"> Prefer H.264 video (plays on every device; the best quality is often AV1 or VP9)</label>
+    <label class="check"><input id="optSubtitles" type="checkbox"> Embed subtitles: the creator’s, plus the automatic ones in the video’s language</label>
+    <label>Use my logins from this browser
+      <select id="optLogin">
+        <option value="auto">Only when a video needs it</option>
+        <option value="always">Always</option>
+        <option value="never">Never</option>
+      </select>
+    </label>
+    <p class="muted small">Logged-in downloads reach age-restricted and members-only videos, but heavy downloading with an account can get it flagged.</p>
+    <fieldset>
+      <legend>Pauses in playlists</legend>
+      <label>Between videos, at least (s) <input id="optSleepMin" type="number" min="0" step="1"></label>
+      <label>…plus a random extra up to (s) <input id="optSleepRandom" type="number" min="0" step="1"></label>
+      <label>Between requests (s) <input id="optSleepRequests" type="number" min="0" step="0.25"></label>
+      <label>Between subtitles (s) <input id="optSleepSubtitles" type="number" min="0" step="0.5"></label>
+    </fieldset>
+    <p id="versions" class="muted small"></p>
+  </section>
+</main>
+<script type="module" src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,157 @@
+// One video's download, start to finish: extract with yt-dlp, download the
+// chosen formats, add subtitles, chapters, metadata and cover, write one file.
+import { extract, useCookies } from './ytdlp.js';
+import { formatSpec } from './formats.js';
+import { downloadFormat, PROTOCOLS } from './download.js';
+import { readTracks, writeMp4 } from './mp4out.js';
+import { chooseTracks, parseSubtitles } from './subs.js';
+import { coverFrom } from './thumb.js';
+import { isMusic } from './summary.js';
+import { cleanName } from './names.js';
+import { indexBlob } from '../lib/fmp4.js';
+
+// Errors that mean the site wants the user to be logged in.
+const NEEDS_LOGIN = /sign in|age[- ]restrict|inappropriate|members|private video|confirm (you|your)|log ?in|login required/i;
+
+const sleep = (seconds, signal) =>
+  new Promise((resolve, reject) => {
+    const t = setTimeout(resolve, seconds * 1000);
+    signal?.addEventListener('abort', () => (clearTimeout(t), reject(signal.reason)), { once: true });
+  });
+
+// Extracts following the user's login choice: 'never', 'always', or 'auto'
+// (without the login first; again with it if the site asks for one).
+export async function extractWithLogin(url, options, login) {
+  useCookies(login === 'always');
+  try {
+    return await extract(url, options);
+  } catch (e) {
+    if (options.signal?.aborted || login !== 'auto' || !NEEDS_LOGIN.test(e.message)) throw e;
+    useCookies(true);
+    return await extract(url, options);
+  }
+}
+
+// The video spec used for analysis and downloads, so one extraction serves both.
+export const videoSpec = (settings) => formatSpec({ mode: 'video', maxHeight: settings.maxHeight, compatible: settings.compatible });
+
+// The best audio-only format we can download, M4A/AAC first. Null if there's none.
+function bestAudio(formats = []) {
+  const ok = formats.filter((f) => f.vcodec === 'none' && f.acodec !== 'none' && f.url && PROTOCOLS.includes(f.protocol || 'https'));
+  const rank = (f) => [f.ext === 'm4a' ? 2 : /^mp4a/.test(f.acodec || '') ? 1 : 0, f.abr || f.tbr || 0];
+  ok.sort((a, b) => {
+    const [x, y] = [rank(a), rank(b)];
+    return y[0] - x[0] || y[1] - x[1];
+  });
+  return ok[0] || null;
+}
+
+const artistOf = (info) => info.artist || info.artists?.join(', ') || info.creator || (info.channel || info.uploader || '').replace(/ - Topic$/, '');
+const dateOf = (info) => {
+  const d = info.release_date || info.upload_date || '';
+  return d.length === 8 ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6)}` : info.release_year ? String(info.release_year) : '';
+};
+
+// Runs one video. `job`: { url, mode: 'auto'|'video'|'music' }. Helpers:
+// report(patch) updates the job; rules(hosts, headers) sets request headers.
+// Resolves to { files: [{ blob, ext, name, cleanup }], notes, title }.
+export async function runVideo(job, { settings, signal, report, rules }) {
+  report({ state: 'extracting' });
+  const info = await extractWithLogin(job.url, { format: videoSpec(settings), signal }, settings.login);
+  if (info._type === 'playlist') throw new Error('This is a playlist: download it as one.');
+  if (info.is_live) throw new Error('Live streams aren’t supported yet: try again when it has ended.');
+  const music = job.mode === 'music' || (job.mode !== 'video' && isMusic(info));
+  report({ title: info.title, music });
+
+  // What to download.
+  const requested = info.requested_formats || [info];
+  let formats = requested;
+  if (music) {
+    const audio = bestAudio(info.formats);
+    formats = audio ? [audio] : [requested[requested.length - 1]];
+  }
+
+  // Download each format, with one progress across all of them.
+  const totals = formats.map((f) => f.filesize || f.filesize_approx || 0);
+  const done = formats.map(() => 0);
+  const files = [];
+  try {
+    for (let i = 0; i < formats.length; i++) {
+      report({ state: 'downloading', progress: { part: i + 1, parts: formats.length, bytes: 0, total: totals.reduce((a, b) => a + b, 0) } });
+      const file = await downloadFormat(formats[i], {
+        signal,
+        rules,
+        onProgress: ({ bytes, done: d, total: t }) => {
+          done[i] = bytes;
+          // Segment downloads report segments: estimate the bytes still to come.
+          if (!totals[i] && t > d) totals[i] = Math.round((bytes / d) * t);
+          report({ progress: { part: i + 1, parts: formats.length, bytes: done.reduce((a, b) => a + b, 0), total: Math.max(totals.reduce((a, b) => a + b, 0), done.reduce((a, b) => a + b, 0)) } });
+        },
+      });
+      files.push({ ...file, format: formats[i] });
+    }
+
+    // Inside a playlist, the playlist's own title for the entry is the better name.
+    const title = (job.playlist && job.title) || info.title;
+    const base = cleanName(music && artistOf(info) && info.track ? `${artistOf(info)} - ${info.track}` : title);
+    const notes = [];
+
+    // Formats MP4 can't hold (WebM, TS…): keep the original files.
+    if (!files.every((f) => f.mp4)) {
+      notes.push('The best format here can’t be joined into MP4, so the original files were saved as they are.');
+      return {
+        title: info.title,
+        notes,
+        files: files.map((f, i) => ({ blob: f.blob, cleanup: f.cleanup, ext: f.ext, name: files.length > 1 ? `${base}.f${f.format.format_id || i}` : base })),
+      };
+    }
+
+    report({ state: 'writing' });
+    const tracks = [];
+    for (const f of files) {
+      const index = f.index || (await indexBlob(f.blob));
+      const read = await readTracks(f.blob, index);
+      const onlyFile = files.length === 1;
+      const wanted = music ? ['soun'] : f.format.vcodec === 'none' ? ['soun'] : onlyFile ? ['vide', 'soun'] : ['vide'];
+      tracks.push(...read.filter((t) => wanted.includes(t.kind)).map((t) => ({ ...t, blob: f.blob })));
+    }
+    if (!tracks.length) throw new Error('The downloaded file has no usable tracks.');
+
+    if (!music && settings.subtitles) {
+      const chosen = chooseTracks(info);
+      for (let i = 0; i < chosen.length; i++) {
+        const t = chosen[i];
+        if (i && settings.sleepSubtitles) await sleep(settings.sleepSubtitles, signal);
+        try {
+          const r = await fetch(t.format.url, { signal, credentials: 'include' });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          const cues = parseSubtitles(await r.text(), t.format.ext);
+          if (cues.length) tracks.push({ kind: 'sbtl', cues, language: t.lang, title: t.name, default: false });
+        } catch (e) {
+          if (signal?.aborted) throw e;
+          notes.push(`Subtitles “${t.name}” couldn’t be downloaded (${e.message}).`);
+        }
+      }
+    }
+
+    const cover = await coverFrom(info, { square: music, signal });
+    const meta = {
+      title: music ? info.track || info.title : info.title,
+      artist: music ? artistOf(info) : info.uploader || info.channel || '',
+      album: music ? info.album || '' : '',
+      date: dateOf(info),
+      url: info.webpage_url || job.url,
+      description: music ? '' : info.description || '',
+      cover,
+    };
+    const chapters = (info.chapters || []).map((c) => ({ start: c.start_time || 0, title: c.title || '' }));
+    const blob = writeMp4({ tracks, meta, chapters, audioOnly: music });
+    const cleanup = () => files.forEach((f) => f.cleanup());
+    return { title: info.title, notes, files: [{ blob, ext: music ? 'm4a' : 'mp4', name: base, cleanup }] };
+  } catch (e) {
+    files.forEach((f) => f.cleanup());
+    throw e;
+  }
+}
+
+export { sleep };

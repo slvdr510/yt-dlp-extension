@@ -10,7 +10,7 @@ import { chromium } from 'playwright';
 import { makeFixtures } from '../fixtures/make.mjs';
 
 export const EXT = resolve(dirname(fileURLToPath(import.meta.url)), '../../extension');
-const TYPES = { '.html': 'text/html', '.mp4': 'video/mp4', '.m4a': 'audio/mp4', '.m3u8': 'application/vnd.apple.mpegurl', '.ts': 'video/mp2t', '.vtt': 'text/vtt', '.jpg': 'image/jpeg', '.mpd': 'application/dash+xml', '.m4s': 'video/iso.segment' };
+const TYPES = { '.html': 'text/html', '.mp4': 'video/mp4', '.m4a': 'audio/mp4', '.m3u8': 'application/vnd.apple.mpegurl', '.ts': 'video/mp2t', '.vtt': 'text/vtt', '.jpg': 'image/jpeg', '.mpd': 'application/dash+xml', '.m4s': 'video/iso.segment', '.xml': 'application/rss+xml' };
 
 export async function startServer() {
   const dir = makeFixtures();
@@ -80,6 +80,21 @@ export async function launch() {
     browser, context, sw, ext, extId, downloads, endpoint,
     send: (msg) => ext.evaluate((m) => chrome.runtime.sendMessage(m), msg),
     session: (key) => sw.evaluate(async (k) => (await chrome.storage.session.get(k))[k], key),
+    // Waits until job `id` reaches one of `states`; returns it.
+    async job(id, states = ['done', 'failed', 'cancelled'], timeout = 60000) {
+      let job;
+      for (const end = Date.now() + timeout; Date.now() < end; await new Promise((r) => setTimeout(r, 150))) {
+        job = ((await api.session('jobs')) || {})[id];
+        if (job && states.includes(job.state)) return job;
+      }
+      throw new Error(`Timed out waiting for ${states}; last: ${JSON.stringify(job)}`);
+    },
+    // Where a finished job's files were saved.
+    files: (job) => sw.evaluate(async (ids) => Promise.all(ids.map(async (id) => (await chrome.downloads.search({ id }))[0]?.filename)), (job.files || []).map((f) => f.downloadId)),
+    settings: (patch) => sw.evaluate(async (p) => {
+      const { settings } = await chrome.storage.local.get('settings');
+      await chrome.storage.local.set({ settings: { ...settings, ...p } });
+    }, patch),
     close: async () => {
       await browser.close().catch(() => {});
       proc.kill();
