@@ -91,9 +91,17 @@ globalThis.bridgeRunJs = box;
 
 let ready = null;
 
+// yt-dlp's cache (YouTube's solved JS challenges, per player version) is kept in
+// IndexedDB, so the first YouTube video after a browser restart skips solving it again.
+const CACHE_DIR = '/cache';
+const syncCache = (py, load) => new Promise((resolve) => py.FS.syncfs(load, () => resolve()));
+
 async function boot() {
   const base = new URL('../vendor/', import.meta.url);
   const py = await loadPyodide({ indexURL: new URL('pyodide/', base).href });
+  py.FS.mkdirTree(CACHE_DIR);
+  py.FS.mount(py.FS.filesystems.IDBFS, {}, CACHE_DIR);
+  await syncCache(py, true);
   const vendor = await (await fetch(new URL('vendor.json', base))).json();
   for (const w of vendor.wheels) py.unpackArchive(await (await fetch(new URL(`wheels/${w}`, base))).arrayBuffer(), 'wheel');
   py.runPython(await (await fetch(new URL('glue.py', import.meta.url))).text());
@@ -131,6 +139,7 @@ async function extractNow(url, { format, playlist, signal, cookies }) {
     out = JSON.parse(await py.runPythonAsync('extract(*_args)'));
   } finally {
     extractionSignal = null;
+    syncCache(py, false);
   }
   signal?.throwIfAborted();
   if (out.error) throw Object.assign(new Error(cleanError(out.error)), { log: out.log });

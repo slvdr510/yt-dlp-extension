@@ -119,6 +119,7 @@ class _Log:
 
 
 COOKIE_FILE = '/cookies.txt'
+CACHE_DIR = '/cache'  # kept in IndexedDB by ytdlp.js
 
 
 def extract(url, options_json):
@@ -139,6 +140,7 @@ def extract(url, options_json):
         'extract_flat': 'in_playlist',
         'format': options.get('format') or 'bv*+ba/b',
         'skip_download': True,
+        'cachedir': CACHE_DIR,
     }
     if cookies:
         params['cookiefile'] = COOKIE_FILE

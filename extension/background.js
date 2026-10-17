@@ -26,6 +26,13 @@ async function ensureEngine() {
   await creating;
 }
 
+// yt-dlp takes a few seconds to load: on a YouTube video it starts loading right
+// away, so it's ready when the popup opens.
+const YOUTUBE_VIDEO = /^https:\/\/(www\.|m\.|music\.)?youtube\.com\/(watch|shorts\/|live\/)/;
+chrome.tabs.onUpdated.addListener((tabId, { url }) => {
+  if (url && YOUTUBE_VIDEO.test(url)) ensureEngine().catch(() => {});
+});
+
 async function toEngine(msg) {
   await ensureEngine();
   for (let i = 0; i < 50; i++) {
