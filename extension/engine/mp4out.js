@@ -386,7 +386,7 @@ export function writeMp4({ tracks, meta = {}, chapters = [], audioOnly = false, 
     if (meta.comment) items.push(item('\xa9cmt', str(meta.comment)));
     if (meta.description) items.push(item('desc', str(meta.description.slice(0, 4000))));
     if (meta.url) items.push(item('\xa9url', str(meta.url)));
-    items.push(item('\xa9too', str('yt-dlp Downloader')));
+    items.push(item('\xa9too', str('yt-dlp-chrome')));
     if (meta.cover) items.push(item('covr', meta.cover.bytes, meta.cover.type === 'png' ? 14 : 13));
     parts.push(full('meta', 0, 0, full('hdlr', 0, 0, u32(0), str('mdir'), str('appl'), new Uint8Array(8), u8(0)), box('ilst', ...items)));
     return box('udta', ...parts);

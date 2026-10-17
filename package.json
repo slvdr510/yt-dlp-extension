@@ -1,5 +1,5 @@
 {
-  "name": "yt-dlp-chrome-extension",
+  "name": "yt-dlp-chrome",
   "private": true,
   "type": "module",
   "devDependencies": {
@@ -10,6 +10,7 @@
   },
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "build": "npm run vendor && node scripts/dev.mjs --once",
     "vendor": "node scripts/vendor.mjs",
     "test": "node --test 'test/unit/*.test.mjs'",
     "test:e2e": "node --test --test-concurrency=1 'test/e2e/*.test.mjs'",

@@ -1,4 +1,4 @@
-// Builds the zip to share: dist/yt-dlp-downloader-<version>-yt-dlp-<yt-dlp version>.zip.
+// Builds the zip to share: release/yt-dlp-chrome-<version>-yt-dlp-<yt-dlp version>.zip.
 // It contains the extension folder, with the pinned yt-dlp and Pyodide inside.
 import { readFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -15,9 +15,10 @@ const vendor = JSON.parse(readFileSync(vendorFile, 'utf8'));
 if (vendor['yt-dlp'] !== versions['yt-dlp'] || vendor.pyodide !== versions.pyodide) {
   throw new Error(`extension/vendor has yt-dlp ${vendor['yt-dlp']} / Pyodide ${vendor.pyodide}, versions.json wants ${versions['yt-dlp']} / ${versions.pyodide}: run npm run vendor`);
 }
-const dist = join(ROOT, 'dist');
+// Not in dist/: that's the unpacked extension itself (npm run dev, npm run build).
+const dist = join(ROOT, 'release');
 mkdirSync(dist, { recursive: true });
-const name = `yt-dlp-downloader-${manifest.version}-yt-dlp-${versions['yt-dlp']}.zip`;
+const name = `yt-dlp-chrome-${manifest.version}-yt-dlp-${versions['yt-dlp']}.zip`;
 rmSync(join(dist, name), { force: true });
 // The zip holds a folder named after the release, ready for "Load unpacked".
 const folder = name.replace(/\.zip$/, '');
@@ -26,4 +27,4 @@ rmSync(stage, { recursive: true, force: true });
 execFileSync('cp', ['-r', EXT, stage]);
 execFileSync('zip', ['-q', '-r', '-X', name, folder], { cwd: dist });
 rmSync(stage, { recursive: true, force: true });
-console.log(join('dist', name));
+console.log(join('release', name));
