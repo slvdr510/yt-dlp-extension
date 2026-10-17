@@ -1,5 +1,5 @@
 {
-  "name": "yt-dlp-chrome",
+  "name": "yt-dlp-extension",
   "private": true,
   "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",

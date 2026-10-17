@@ -257,7 +257,7 @@ setInterval(() => document.querySelector('#jobs .bar') && renderJobs(), 1000); /
 
 // ---------- options ----------
 
-const VIEWS = { main: 'yt-dlp-chrome', options: 'Options', formats: 'Which format?' };
+const VIEWS = { main: 'yt-dlp-extension', options: 'Options', formats: 'Which format?' };
 function showView(view) {
   for (const v of Object.keys(VIEWS)) $(`view-${v}`).classList.toggle('hidden', v !== view);
   $('back').classList.toggle('hidden', view === 'main');

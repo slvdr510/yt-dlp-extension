@@ -1,4 +1,4 @@
-# yt-dlp-chrome
+# yt-dlp-extension
 
 A Chrome extension that downloads videos, audio and subtitles from YouTube and the [other sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) [yt-dlp](https://github.com/yt-dlp/yt-dlp) supports. yt-dlp runs **inside the browser**: there's nothing else to install.
 
@@ -20,8 +20,8 @@ The extension isn't in the Chrome Web Store (the store doesn't allow YouTube dow
 **1. Get the project.**
 
 ```sh
-git clone https://github.com/slvdr510/yt-dlp-chrome.git
-cd yt-dlp-chrome
+git clone https://github.com/slvdr510/yt-dlp-extension.git
+cd yt-dlp-extension
 ```
 
 **2. Build it.** In the project's folder:

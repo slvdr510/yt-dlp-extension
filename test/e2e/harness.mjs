@@ -70,7 +70,7 @@ export async function launch({ others = [] } = {}) {
   const context = browser.contexts()[0];
   const cdp = await browser.newBrowserCDPSession();
   await cdp.send('Browser.setDownloadBehavior', { behavior: 'default' });
-  const isOurs = async (w) => w.url().startsWith('chrome-extension://') && (await w.evaluate(() => chrome.runtime.getManifest().name).catch(() => '')) === 'yt-dlp-chrome';
+  const isOurs = async (w) => w.url().startsWith('chrome-extension://') && (await w.evaluate(() => chrome.runtime.getManifest().name).catch(() => '')) === 'yt-dlp-extension';
   let sw = null;
   for (const end = Date.now() + 10000; !sw && Date.now() < end; await new Promise((r) => setTimeout(r, 100))) {
     for (const w of context.serviceWorkers()) if (await isOurs(w)) sw = w;
