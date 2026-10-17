@@ -15,9 +15,16 @@ The popup remembers your last choice of Video or Audio and of audio format. Unti
 
 ## Install
 
-The extension isn't in the Chrome Web Store (the store doesn't allow YouTube downloaders): you build it from this project and load it into the browser yourself. You need [Node.js](https://nodejs.org) 22 or newer.
+The extension isn't in the Chrome Web Store (the store doesn't allow YouTube downloaders): you build it from this project and load it into the browser yourself. You need [Git](https://git-scm.com) and [Node.js](https://nodejs.org) 22 or newer.
 
-**1. Build it.** In the project's folder:
+**1. Get the project.**
+
+```sh
+git clone https://github.com/slvdr510/yt-dlp-chrome.git
+cd yt-dlp-chrome
+```
+
+**2. Build it.** In the project's folder:
 
 ```sh
 npm install && npm run build
@@ -25,7 +32,7 @@ npm install && npm run build
 
 `npm install` fetches Pyodide and the other tools; `npm run build` downloads yt-dlp from PyPI and puts the finished extension in the `dist` folder.
 
-**2. Load it into the browser.**
+**3. Load it into the browser.**
 
 1. Open `chrome://extensions` and turn on **Developer mode** (top right).
 2. Click **Load unpacked** and choose the project's `dist` folder.
@@ -33,7 +40,16 @@ npm install && npm run build
 
 It works in Chrome, Chromium, Brave, Edge and Vivaldi, version 137 or newer. Chrome shows a notice about developer-mode extensions: that's expected for extensions loaded this way. Keep the project folder where it is: the browser runs the extension straight from `dist`.
 
-**Updating:** YouTube changes often and yt-dlp follows. After getting a newer version of this project (or setting a newer yt-dlp in `versions.json`), run `npm run build` again, then click the reload arrow on the extension's card in `chrome://extensions`. Since it's the same `dist` folder, your settings are kept.
+### Updating
+
+YouTube changes often and yt-dlp follows, so update now and then. In the project's folder:
+
+```sh
+git pull                        # brings the latest changes from GitHub
+npm install && npm run build    # builds the extension again into dist
+```
+
+Then open `chrome://extensions` and click the reload arrow (↻) on the extension's card. Chrome doesn't pick up the new files until you do. Your settings are kept, since it's the same `dist` folder.
 
 ## Options
 
