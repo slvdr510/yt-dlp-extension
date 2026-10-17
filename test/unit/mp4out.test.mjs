@@ -54,7 +54,7 @@ test('subtitles, chapters, metadata and cover are embedded', async () => {
       { kind: 'sbtl', cues, language: 'en', title: 'English', default: true },
       { kind: 'sbtl', cues: [{ start: 1, end: 2, text: 'Hola' }], language: 'es-419', title: 'Spanish' },
     ],
-    meta: { title: 'My video', artist: 'Someone', date: '2024', cover: { bytes: fixtureBytes('cover.jpg'), type: 'jpeg' } },
+    meta: { title: 'My video', artist: 'Someone', date: '2024', genre: 'Gaming', comment: 'https://example.com/v', description: 'All of it', cover: { bytes: fixtureBytes('cover.jpg'), type: 'jpeg' } },
     chapters: [{ start: 0, title: 'Intro' }, { start: 4, title: 'Part two' }],
   });
   const file = await saveBlob(blob, 'full.mp4');
@@ -66,6 +66,10 @@ test('subtitles, chapters, metadata and cover are embedded', async () => {
   assert.deepEqual(p.chapters.map((c) => [Math.round(Number(c.start_time)), c.tags?.title]), [[0, 'Intro'], [4, 'Part two']]);
   assert.equal(p.tags.title, 'My video');
   assert.equal(p.tags.artist, 'Someone');
+  assert.equal(p.tags.genre, 'Gaming');
+  assert.equal(p.tags.comment, 'https://example.com/v');
+  assert.equal(p.tags.description, 'All of it');
+  assert.equal(p.tags.synopsis, 'All of it');
   assert.ok(p.streams.some((s) => s.disposition?.attached_pic === 1), 'cover art');
   assert.equal(decodeErrors(file), '');
 });

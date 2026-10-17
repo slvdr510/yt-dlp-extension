@@ -285,6 +285,7 @@ function wireOptions() {
   bind('optNameAudio', 'nameAudio', (i) => (i.value = i.value.trim() || DEFAULTS.nameAudio));
   wireNames();
   bind('optCompatible', 'compatible', (i) => i.checked);
+  for (const key of ['metaDetails', 'metaDescription', 'metaLink', 'metaCover', 'metaChapters']) bind(`opt${key[0].toUpperCase()}${key.slice(1)}`, key, (i) => i.checked);
   const seconds = (i) => Math.max(0, Number(i.value) || 0);
   bind('optSleepMin', 'sleepMin', seconds);
   bind('optSleepRandom', 'sleepRandom', seconds);

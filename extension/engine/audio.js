@@ -131,8 +131,9 @@ const concat = (parts) => {
   return out;
 };
 
-// An ID3v2.3 tag (what every player reads) with the song details and cover.
-// meta: { title, artist, album, date, url, cover: { bytes, type } }.
+// An ID3v2.3 tag (what every player reads) with the song details and cover, the
+// way yt-dlp's --embed-metadata writes them (description and purl as TXXX).
+// meta: { title, artist, album, date, genre, comment, description, url, cover: { bytes, type } }.
 export function id3(meta = {}) {
   const frames = [];
   const frame = (id, body) => {
@@ -146,6 +147,13 @@ export function id3(meta = {}) {
   text('TPE1', meta.artist);
   text('TALB', meta.album);
   text('TYER', (meta.date || '').slice(0, 4));
+  text('TCON', meta.genre);
+  // UTF-16 text with an empty description (or a named one), each ended by 00 00.
+  const end = Uint8Array.of(0, 0);
+  if (meta.comment) frame('COMM', concat([Uint8Array.of(1), ascii('eng'), utf16(''), end, utf16(String(meta.comment))]));
+  const custom = (name, value) => value && frame('TXXX', concat([Uint8Array.of(1), utf16(name), end, utf16(String(value))]));
+  custom('description', meta.description);
+  custom('purl', meta.url);
   if (meta.url) frame('WXXX', concat([Uint8Array.of(0, 0), ascii(meta.url)]));
   if (meta.cover?.bytes) frame('APIC', concat([Uint8Array.of(0), ascii(`image/${meta.cover.type === 'png' ? 'png' : 'jpeg'}`), Uint8Array.of(0, 3, 0), meta.cover.bytes]));
   const body = concat(frames);
@@ -171,6 +179,8 @@ export function wavHeader({ sampleRate, channels, dataSize, meta = {} }) {
   field('IART', meta.artist);
   field('IPRD', meta.album);
   field('ICRD', meta.date);
+  field('IGNR', meta.genre);
+  field('ICMT', meta.comment);
   const list = info.length ? concat([ascii('LIST'), new Uint8Array(4), ascii('INFO'), ...info]) : new Uint8Array(0);
   if (list.length) new DataView(list.buffer).setUint32(4, list.length - 8, true);
   const head = new Uint8Array(36);

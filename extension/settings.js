@@ -7,6 +7,12 @@ export const DEFAULTS = {
   nameAudio: '{artist} - {track}',
   underscores: true, // underscores instead of spaces
   numberPlaylist: false, // a playlist's files start with their place in it: "01 - Title"
+  // What's written inside the files:
+  metaDetails: true, // title, artist, album, date, genre
+  metaDescription: true, // the video's description
+  metaLink: true, // the video's address (comment and purl)
+  metaCover: true, // the thumbnail as cover art
+  metaChapters: true, // chapters (MP4)
   compatible: false, // prefer H.264 video, which plays on every device
   audioFormat: 'm4a', // music: 'm4a' (original AAC), 'mp3', 'opus' (original), 'wav'
   subtitleTracks: [], // subtitles to embed (ids from subtitleOptions), chosen per download

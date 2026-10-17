@@ -7,7 +7,7 @@ import { aacConfig, id3, wavHeader } from '../../extension/engine/audio.js';
 import { fixtureBlob, fixtureBytes, saveBlob, tempFile } from './env.mjs';
 import { probe } from '../e2e/harness.mjs';
 
-const meta = { title: 'Canción ñ', artist: 'Artista', album: 'Álbum', date: '2024-05-01' };
+const meta = { title: 'Canción ñ', artist: 'Artista', album: 'Álbum', date: '2024-05-01', genre: 'Music', comment: 'https://example.com/v?id=1', description: 'Línea uno\nLínea dos', url: 'https://example.com/v?id=1' };
 
 test('reads the AAC decoder setup from an MP4 track', async () => {
   const track = (await readTracks(fixtureBlob('clip.mp4'))).find((t) => t.kind === 'soun');
@@ -28,6 +28,10 @@ test('ID3 tag: song details and cover that players read', async () => {
   assert.equal(p.tags.artist, meta.artist);
   assert.equal(p.tags.album, meta.album);
   assert.equal(p.tags.date, '2024');
+  assert.equal(p.tags.genre, meta.genre);
+  assert.equal(p.tags.comment, meta.comment);
+  assert.equal(p.tags.description, meta.description);
+  assert.equal(p.tags.purl, meta.url);
   assert.ok(p.streams.some((s) => s.disposition?.attached_pic), 'cover');
   assert.ok(Math.abs(p.duration - 1) < 0.1, `duration ${p.duration}`);
 });
@@ -41,6 +45,8 @@ test('WAV header: 16-bit PCM with the song details', async () => {
   assert.equal(p.streams[0].codec, 'pcm_s16le');
   assert.equal(p.tags.title, meta.title);
   assert.equal(p.tags.artist, meta.artist);
+  assert.equal(p.tags.genre, meta.genre);
+  assert.equal(p.tags.comment, meta.comment);
   assert.ok(Math.abs(p.duration - 1) < 0.01, `duration ${p.duration}`);
   assert.equal(execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-f', 'null', '-']).toString(), '');
 });

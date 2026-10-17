@@ -392,8 +392,10 @@ export function writeMp4({ tracks, meta = {}, chapters = [], audioOnly = false, 
     if (meta.artist) items.push(item('\xa9ART', str(meta.artist)));
     if (meta.album) items.push(item('\xa9alb', str(meta.album)));
     if (meta.date) items.push(item('\xa9day', str(meta.date)));
+    if (meta.genre) items.push(item('\xa9gen', str(meta.genre)));
     if (meta.comment) items.push(item('\xa9cmt', str(meta.comment)));
-    if (meta.description) items.push(item('desc', str(meta.description.slice(0, 4000))));
+    // desc is the short description players show; ldes holds all of it.
+    if (meta.description) items.push(item('desc', str(meta.description.slice(0, 255))), item('ldes', str(meta.description)));
     if (meta.url) items.push(item('\xa9url', str(meta.url)));
     items.push(item('\xa9too', str('yt-dlp-chrome')));
     if (meta.cover) items.push(item('covr', meta.cover.bytes, meta.cover.type === 'png' ? 14 : 13));

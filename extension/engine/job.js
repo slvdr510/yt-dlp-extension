@@ -152,17 +152,23 @@ export async function runVideo(job, { settings, signal, report, rules }) {
       }
     }
 
-    const cover = await coverFrom(info, { square: music, signal });
+    // The details written inside the file, as the user chose (settings.meta*).
+    const cover = settings.metaCover ? await coverFrom(info, { square: music, signal }) : null;
+    const url = info.webpage_url || job.url;
     const meta = {
-      title: music ? info.track || info.title : info.title,
-      artist: music ? artistOf(info) : info.uploader || info.channel || '',
-      album: music ? info.album || '' : '',
-      date: dateOf(info),
-      url: info.webpage_url || job.url,
-      description: music ? '' : info.description || '',
+      ...(settings.metaDetails && {
+        title: music ? info.track || info.title : info.title,
+        artist: music ? artistOf(info) : info.uploader || info.channel || '',
+        album: music ? info.album || '' : '',
+        date: dateOf(info),
+        genre: info.genre || (info.genres || info.categories || []).join(', '),
+      }),
+      // The link goes in the comment and as purl, like yt-dlp's --embed-metadata.
+      ...(settings.metaLink && { url, comment: url }),
+      description: (settings.metaDescription && info.description) || '',
       cover,
     };
-    const chapters = (info.chapters || []).map((c) => ({ start: c.start_time || 0, title: c.title || '' }));
+    const chapters = settings.metaChapters ? (info.chapters || []).map((c) => ({ start: c.start_time || 0, title: c.title || '' })) : [];
     const cleanup = () => files.forEach((f) => f.cleanup());
     if (music && ['mp3', 'wav'].includes(audioFormat)) {
       report({ state: 'converting', format: audioFormat, progress: { done: 0, total: 1 } });
