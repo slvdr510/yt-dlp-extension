@@ -125,6 +125,10 @@ These keep sites from flagging the downloads; raise them for very long playlists
 - When a site's best format can't go into MP4 (some only offer WebM), the original files are saved as they are, with a note.
 - Downloads run one at a time, in the background; they keep going when the popup is closed, but stop if the browser closes.
 
+## Use it responsibly
+
+Only download what you have the right to: your own videos, content under a license that allows it, or what the law where you live allows for personal use. Downloading from YouTube and other sites may go against their terms of service. You're responsible for what you download with this extension.
+
 ## How it works
 
 **Yes, it's the real yt-dlp.** The extension ships the official, unmodified yt-dlp package from PyPI (the version is in `versions.json`; `npm run vendor` downloads it and checks it against PyPI's checksum). It runs in [Pyodide](https://pyodide.org), Python compiled to WebAssembly, in an offscreen document of the extension.
