@@ -142,7 +142,6 @@ npm run dev           # dist/, kept in sync with extension/ (load it unpacked)
 npm test              # unit tests (MP4 writer, subtitles)
 npm run test:e2e      # the real extension in Chromium, against local test media
 ONLINE=1 npm run test:e2e   # also real YouTube downloads
-npm run package       # release/yt-dlp-chrome-<version>-yt-dlp-<yt-dlp>.zip
 ```
 
 **New yt-dlp release:** set its version in `versions.json`, bump `version` in `extension/manifest.json`, then run `npm run build` and the tests (including `ONLINE=1`). `npm run vendor` checks the download against PyPI's checksum and fetches the `yt-dlp-ejs` version that yt-dlp release expects.
