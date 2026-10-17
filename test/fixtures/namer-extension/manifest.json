@@ -1,0 +1,8 @@
+{
+  "manifest_version": 3,
+  "name": "Download namer (test)",
+  "version": "1",
+  "description": "Listens to onDeterminingFilename like download managers do, which makes Chrome drop the names other extensions give downloads.",
+  "permissions": ["downloads"],
+  "background": { "service_worker": "sw.js" }
+}

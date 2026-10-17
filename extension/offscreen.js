@@ -130,6 +130,14 @@ const handlers = {
     if (current && (current.job.id === id || current.job.parent === id)) current.controller.abort(new DOMException('Cancelled', 'AbortError'));
     return { ok: true, queued: i >= 0 };
   },
+  // For the worker's saveWithLink: a link's download attribute names the file.
+  async clickDownload({ blobUrl, filename }) {
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    link.click();
+    return { ok: true };
+  },
   async release({ blobUrl }) {
     temp.get(blobUrl)?.();
     temp.delete(blobUrl);

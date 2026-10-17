@@ -39,7 +39,9 @@ export async function startServer() {
   return { base: `http://127.0.0.1:${server.address().port}`, hooks, log, close: () => new Promise((r) => server.close(r)) };
 }
 
-export async function launch() {
+// `others`: more extensions to load next to this one (folders).
+export async function launch({ others = [] } = {}) {
+  const exts = [EXT, ...others].join(',');
   const profile = mkdtempSync(join(tmpdir(), 'ytx-profile-'));
   const downloads = mkdtempSync(join(tmpdir(), 'ytx-downloads-'));
   const removeTemp = () => {
@@ -53,7 +55,7 @@ export async function launch() {
   writeFileSync(join(profile, 'Default', 'Preferences'), JSON.stringify({ download: { default_directory: downloads, prompt_for_download: false } }));
   const proc = spawn(chromium.executablePath(), [
     '--headless=new', `--user-data-dir=${profile}`, '--remote-debugging-port=0', '--no-first-run', '--no-default-browser-check',
-    '--enable-unsafe-extension-debugging', `--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, 'about:blank',
+    '--enable-unsafe-extension-debugging', `--disable-extensions-except=${exts}`, `--load-extension=${exts}`, 'about:blank',
   ], { stdio: ['ignore', 'ignore', 'pipe'] });
   const endpoint = await new Promise((resolve, reject) => {
     let err = '';

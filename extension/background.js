@@ -61,17 +61,71 @@ async function toEngine(msg) {
 
 // ---------- saving ----------
 
-// Names for the files being saved, by blob URL. When another extension listens to
-// onDeterminingFilename, Chrome drops the name given to downloads.download(), so
-// it's suggested again here (when several extensions suggest, the one installed
-// last wins). Other downloads are left alone.
-const names = new Map();
-chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
-  const filename = item.byExtensionId === chrome.runtime.id && names.get(item.url);
-  if (!filename) return suggest();
-  names.delete(item.url);
-  suggest({ filename, conflictAction: 'uniquify' });
-});
+// No onDeterminingFilename listener here: a listener can't stay out of other
+// extensions' downloads (even an empty suggest() overrides their names and raises a
+// filename-conflict warning). So a file is named by the download itself instead.
+
+// A link's download attribute is the download's own name, as a server's
+// Content-Disposition would be, so no other extension's listener can drop it. It
+// can't make folders, though, and follows Chrome's "ask where to save" setting. The
+// engine clicks it, since the blob is its own and the worker has no document.
+function saveWithLink({ blobUrl, filename }) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const settle = (downloadId) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      chrome.downloads.onCreated.removeListener(onCreated);
+      resolve(downloadId);
+    };
+    // Blob URLs are unique, so the download with this URL is the one just started.
+    const onCreated = (item) => item.url === blobUrl && settle(item.id);
+    // If the link didn't start it, the file is still saved, if under a name another extension's listener could drop.
+    const fallBack = () => {
+      if (!settled) saveWithApi({ blobUrl, filename }).then(settle);
+    };
+    const timer = setTimeout(fallBack, 10_000);
+    chrome.downloads.onCreated.addListener(onCreated);
+    toEngine({ cmd: 'clickDownload', blobUrl, filename }).then((res) => res.error && fallBack(), fallBack);
+  });
+}
+
+// Keeps the playlist's folder and saves without a dialog per file, but Chrome drops
+// `filename` (back to the blob's UUID) as soon as any other extension listens to
+// onDeterminingFilename.
+function saveWithApi({ blobUrl, filename }) {
+  return chrome.downloads.download({ url: blobUrl, filename, conflictAction: 'uniquify', saveAs: false });
+}
+
+// The name Chrome gave a download, once it has one ('' if it never gets one).
+function finalName(downloadId) {
+  return new Promise((resolve) => {
+    const done = (name) => {
+      clearTimeout(timer);
+      chrome.downloads.onChanged.removeListener(onChanged);
+      resolve(name);
+    };
+    const onChanged = ({ id, filename }) => id === downloadId && filename?.current && done(filename.current);
+    const timer = setTimeout(() => done(''), 10_000);
+    chrome.downloads.onChanged.addListener(onChanged);
+    chrome.downloads.search({ id: downloadId }).then(([item]) => item?.filename && done(item.filename));
+  });
+}
+
+// A playlist's file goes in its folder when Chrome keeps the name. If another
+// extension made Chrome drop it (the file is named after the blob's UUID), that
+// file goes and it's saved again with a link: the right name, without the folder.
+async function saveInFolder(f) {
+  const downloadId = await saveWithApi(f);
+  const uuid = f.blobUrl.split('/').pop();
+  const name = (await finalName(downloadId)).split(/[\\/]/).pop();
+  if (!name.startsWith(uuid)) return downloadId;
+  await chrome.downloads.cancel(downloadId).catch(() => {});
+  await chrome.downloads.removeFile(downloadId).catch(() => {});
+  await chrome.downloads.erase({ id: downloadId });
+  return saveWithLink({ ...f, filename: f.filename.split('/').pop() });
+}
 
 // One job can save several files; it's done when all are.
 chrome.downloads.onChanged.addListener(async ({ id, state }) => {
@@ -129,8 +183,8 @@ const engineHandlers = {
   async save({ id, files }) {
     const saved = [];
     for (const f of files) {
-      names.set(f.blobUrl, f.filename);
-      const downloadId = await chrome.downloads.download({ url: f.blobUrl, filename: f.filename, conflictAction: 'uniquify', saveAs: false });
+      // Only a playlist's files go in a folder.
+      const downloadId = await (f.filename.includes('/') ? saveInFolder(f) : saveWithLink(f));
       saved.push({ ...f, downloadId, state: 'in_progress' });
     }
     await jobsStore.update((s) => s[id] && ((s[id].files = saved), true));
