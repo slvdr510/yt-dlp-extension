@@ -1,6 +1,7 @@
 {
   "name": "yt-dlp-chrome",
   "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "devDependencies": {
     "@breezystack/lamejs": "^1.2.7",

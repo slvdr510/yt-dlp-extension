@@ -161,3 +161,9 @@ ONLINE=1 npm run test:e2e   # also real YouTube downloads
 ```
 
 **New yt-dlp release:** set its version in `versions.json`, bump `version` in `extension/manifest.json`, then run `npm run build` and the tests (including `ONLINE=1`). `npm run vendor` checks the download against PyPI's checksum and fetches the `yt-dlp-ejs` version that yt-dlp release expects.
+
+## License
+
+[PolyForm Noncommercial 1.0.0](LICENSE.md): you can use, change and share it for any noncommercial purpose. Commercial use isn't allowed.
+
+`npm run build` downloads other projects into the extension, each under its own license: [yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense), [Pyodide](https://pyodide.org) (MPL-2.0) and [lamejs](https://www.npmjs.com/package/@breezystack/lamejs) (LGPL-3.0, its license goes along in `extension/vendor`).
