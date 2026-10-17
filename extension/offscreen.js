@@ -30,7 +30,7 @@ const CACHE_MS = 10 * 60 * 1000;
 const cache = new Map();
 async function cachedExtract(url, options, settings) {
   // A different login can give a different result.
-  const key = JSON.stringify([url, options, settings.login, settings.cookies?.length || 0]);
+  const key = JSON.stringify([url, options, settings.cookies?.length || 0]);
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.info;
   const info = await extractWithLogin(url, options, settings);

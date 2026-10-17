@@ -5,7 +5,6 @@ export const DEFAULTS = {
   compatible: false, // prefer H.264 video, which plays on every device
   audioFormat: 'm4a', // music: 'm4a' (original AAC), 'mp3', 'opus' (original), 'wav'
   subtitles: true, // embed the creator's subtitles and the original automatic captions
-  login: 'auto', // use this browser's logins: 'never', 'auto' (only when a video needs it), 'always'
   // Pauses for playlists, so sites don't flag the downloads (yt-dlp's suggested values):
   sleepMin: 10, // seconds between videos, at least…
   sleepRandom: 10, // …plus a random 0 to this many seconds

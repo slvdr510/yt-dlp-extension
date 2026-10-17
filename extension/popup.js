@@ -260,7 +260,6 @@ function wireOptions() {
   bind('optFormat', 'audioFormat', (i) => i.value);
   bind('optCompatible', 'compatible', (i) => i.checked);
   bind('optSubtitles', 'subtitles', (i) => i.checked);
-  bind('optLogin', 'login', (i) => i.value);
   const seconds = (i) => Math.max(0, Number(i.value) || 0);
   bind('optSleepMin', 'sleepMin', seconds);
   bind('optSleepRandom', 'sleepRandom', seconds);

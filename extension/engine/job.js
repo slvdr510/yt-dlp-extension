@@ -12,7 +12,7 @@ import { indexBlob } from '../lib/fmp4.js';
 import { convertAudio } from './audio.js';
 
 // Errors that mean the site wants the user to be logged in.
-const NEEDS_LOGIN = /sign in|age[- ]restrict|inappropriate|members|private video|confirm (you|your)|log ?in|login required/i;
+const NEEDS_LOGIN = /\b401\b|unauthori[sz]ed|sign in|age[- ]restrict|inappropriate|members|private video|confirm (you|your)|log ?in|login required/i;
 
 const sleep = (seconds, signal) =>
   new Promise((resolve, reject) => {
@@ -20,21 +20,19 @@ const sleep = (seconds, signal) =>
     signal?.addEventListener('abort', () => (clearTimeout(t), reject(signal.reason)), { once: true });
   });
 
-// Extracts following the user's login choice (settings.login): 'never', 'always',
-// or 'auto' (without a login first; again with it if the site asks for one). The
+// Extracts without a login first, and again with one if the site asks for it. The
 // login is the imported cookies (settings.cookies) if any, else this browser's.
 export async function extractWithLogin(url, options, settings) {
-  const { login, cookies } = settings;
+  const { cookies } = settings;
   const loggedIn = () => {
     useCookies(!cookies);
     return extract(url, cookies ? { ...options, cookies } : options);
   };
-  if (login === 'always') return loggedIn();
   useCookies(false);
   try {
     return await extract(url, options);
   } catch (e) {
-    if (options.signal?.aborted || login !== 'auto' || !NEEDS_LOGIN.test(e.message)) throw e;
+    if (options.signal?.aborted || !NEEDS_LOGIN.test(e.message)) throw e;
     return loggedIn();
   }
 }

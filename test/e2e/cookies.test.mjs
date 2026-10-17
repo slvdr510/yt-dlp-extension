@@ -15,7 +15,7 @@ before(async () => {
     if (!m) return false;
     seen.push({ page: m[1], cookie: req.headers.cookie || '' });
     if (!new RegExp(`(^|; )${m[1]}=yes(;|$)`).test(req.headers.cookie || '')) {
-      res.writeHead(403).end('forbidden');
+      res.writeHead(401).end('unauthorized');
       return true;
     }
     res.writeHead(200, { 'content-type': 'text/html' }).end('<title>Private</title><video src="/clip.mp4"></video>');
@@ -35,18 +35,17 @@ const analyze = (name) => b.send({ cmd: 'analyze', url: `${server.base}/private-
 test('a cookies.txt file logs in', async () => {
   const r = await importCookies('txt', ['cookies.txt']);
   assert.equal(r.imported?.count, 1, JSON.stringify(r));
-  await b.settings({ login: 'never' });
-  assert.match((await analyze('from_txt')).error, /403/);
-  await b.settings({ login: 'always' });
+  // Without a login first; the site asks for one, so again with the cookies.
   const ok = await analyze('from_txt');
   assert.ok(!ok.error, ok.error);
-  assert.match(seen.at(-1).cookie, /from_txt=yes/);
+  const tries = seen.filter((s) => s.page === 'from_txt');
+  assert.doesNotMatch(tries[0].cookie, /from_txt=yes/);
+  assert.match(tries.at(-1).cookie, /from_txt=yes/);
 });
 
 test('Firefox cookies, including the newest ones still in the -wal file', async () => {
   const r = await importCookies('firefox', ['firefox/cookies.sqlite', 'firefox/cookies.sqlite-wal']);
   assert.equal(r.imported?.count, 2, JSON.stringify(r));
-  await b.settings({ login: 'always' });
   assert.ok(!(await analyze('from_firefox_wal')).error);
   // Without the -wal file only the older cookie is there.
   assert.equal((await importCookies('firefox', ['firefox/cookies.sqlite'])).imported?.count, 1);
@@ -55,7 +54,6 @@ test('Firefox cookies, including the newest ones still in the -wal file', async 
 test('Chromium cookies without a keyring are decrypted', async () => {
   const r = await importCookies('chromium', ['chromium/Cookies']);
   assert.equal(r.imported?.count, 2, JSON.stringify(r));
-  await b.settings({ login: 'always' });
   assert.ok(!(await analyze('from_chromium')).error);
   assert.ok(!(await analyze('from_chromium_plain')).error);
 });
