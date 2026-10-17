@@ -7,7 +7,7 @@ import { readTracks, writeMp4 } from './mp4out.js';
 import { chooseTracks, parseSubtitles } from './subs.js';
 import { coverFrom } from './thumb.js';
 import { isMusic } from './summary.js';
-import { cleanName } from './names.js';
+import { fileName } from './names.js';
 import { indexBlob } from '../lib/fmp4.js';
 import { convertAudio } from './audio.js';
 
@@ -99,9 +99,13 @@ export async function runVideo(job, { settings, signal, report, rules }) {
       files.push({ ...file, format: formats[i] });
     }
 
-    // Inside a playlist, the playlist's own title for the entry is the better name.
+    // The file's name, from the user's template. Inside a playlist, the playlist's
+    // own title for the entry is the better title; numbered by place if wanted.
     const title = (job.playlist && job.title) || info.title;
-    const base = cleanName(music && artistOf(info) && info.track ? `${artistOf(info)} - ${info.track}` : title);
+    const fields = { title, channel: info.channel || info.uploader || '', artist: artistOf(info), track: info.track || title, date: dateOf(info), id: info.id || '' };
+    const { index, count } = job.playlist || {};
+    const number = job.playlist && settings.numberPlaylist ? String(index).padStart(String(count).length, '0') : '';
+    const base = fileName(music ? settings.nameAudio : settings.nameVideo, fields, { number, underscores: settings.underscores });
     const notes = [];
 
     // Opus: the site's own file, as it is.

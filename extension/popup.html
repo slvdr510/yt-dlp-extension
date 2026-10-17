@@ -92,6 +92,15 @@
       </select>
     </label>
     <label class="check"><input id="optCompatible" type="checkbox"> Prefer H.264 video (plays on every device; the best quality is often AV1 or VP9)</label>
+    <fieldset class="names">
+      <legend>File names</legend>
+      <label>Videos <input id="optNameVideo" type="text" spellcheck="false" placeholder="{title}"></label>
+      <label>Audio <input id="optNameAudio" type="text" spellcheck="false" placeholder="{artist} - {track}"></label>
+      <div id="nameFields" class="fields" aria-label="Add a field"></div>
+      <p id="namePreview" class="muted small preview"></p>
+      <label class="check"><input id="optUnderscores" type="checkbox"> Underscores instead of spaces</label>
+      <label class="check"><input id="optNumber" type="checkbox"> Number a playlist’s files by their place in it (01 - Title)</label>
+    </fieldset>
     <p class="muted small">Logged-in downloads reach age-restricted and members-only videos, but heavy downloading with an account can get it flagged.</p>
     <fieldset id="login">
       <legend>Log in with another browser</legend>

@@ -77,7 +77,6 @@ async function expand(job, signal) {
   const info = await extractWithLogin(job.url, { format: videoSpec(job.settings), playlist: true, signal }, job.settings);
   const entries = (info.entries || []).filter((e) => e && (e.url || e.webpage_url || e.id));
   if (!entries.length) throw new Error('The playlist is empty.');
-  const width = String(entries.length).length;
   const children = entries.map((e, i) => ({
     id: crypto.randomUUID(),
     kind: 'video',
@@ -86,7 +85,7 @@ async function expand(job, signal) {
     mode: job.mode,
     settings: job.settings,
     parent: job.id,
-    playlist: { title: info.title || 'Playlist', index: i + 1, count: entries.length, prefix: String(i + 1).padStart(width, '0') },
+    playlist: { title: info.title || 'Playlist', index: i + 1, count: entries.length },
   }));
   await toWorker({ cmd: 'addJobs', parent: job.id, jobs: children.map(({ settings, ...rest }) => ({ ...rest, state: 'queued' })) });
   report(job.id, { state: 'expanded', count: children.length, title: info.title });
@@ -102,11 +101,10 @@ async function runOne(job, signal) {
   }
   const result = await runVideo(job, { settings: job.settings, signal, rules, report: (patch) => report(job.id, patch) });
   const folder = job.playlist ? `${cleanName(job.playlist.title, 'Playlist')}/` : '';
-  const prefix = job.playlist ? `${job.playlist.prefix} - ` : '';
   const files = result.files.map((f) => {
     const blobUrl = URL.createObjectURL(f.blob);
     temp.set(blobUrl, () => (URL.revokeObjectURL(blobUrl), f.cleanup?.()));
-    return { blobUrl, filename: `${folder}${prefix}${f.name}.${f.ext}` };
+    return { blobUrl, filename: `${folder}${f.name}.${f.ext}` };
   });
   report(job.id, { state: 'saving', notes: result.notes, progress: null });
   await toWorker({ cmd: 'save', id: job.id, files });

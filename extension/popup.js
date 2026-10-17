@@ -1,6 +1,7 @@
 // The popup: analyzes the current tab with yt-dlp, offers the download, and
 // lists the downloads. Everything is shown with textContent (no HTML from pages).
-import { loadSettings, saveSettings } from './settings.js';
+import { loadSettings, saveSettings, DEFAULTS } from './settings.js';
+import { NAME_FIELDS, fileName } from './engine/names.js';
 import { BROWSERS, SYSTEMS, detectSystem, hintsFor } from './cookie-paths.js';
 
 const $ = (id) => document.getElementById(id);
@@ -277,12 +278,61 @@ function wireOptions() {
   };
   bind('optQuality', 'maxHeight', (i) => Number(i.value), String);
   bind('optFormat', 'audioFormat', (i) => ($('format').value = i.value));
+  bind('optNumber', 'numberPlaylist', (i) => (showNames(), i.checked));
+  bind('optUnderscores', 'underscores', (i) => (showNames(), i.checked));
+  // An emptied template goes back to the default.
+  bind('optNameVideo', 'nameVideo', (i) => (i.value = i.value.trim() || DEFAULTS.nameVideo));
+  bind('optNameAudio', 'nameAudio', (i) => (i.value = i.value.trim() || DEFAULTS.nameAudio));
+  wireNames();
   bind('optCompatible', 'compatible', (i) => i.checked);
   const seconds = (i) => Math.max(0, Number(i.value) || 0);
   bind('optSleepMin', 'sleepMin', seconds);
   bind('optSleepRandom', 'sleepRandom', seconds);
   bind('optSleepRequests', 'sleepRequests', seconds);
   bind('optSleepSubtitles', 'sleepSubtitles', seconds);
+}
+
+// ---------- file names ----------
+
+const SAMPLE = { title: 'Me at the zoo', channel: 'jawed', artist: 'jawed', track: 'Me at the zoo', date: '2005-04-23', id: 'jNQXAC9IVRw' };
+
+// What the templates give, for a sample video.
+function showNames() {
+  const opts = { underscores: $('optUnderscores').checked, number: $('optNumber').checked ? '01' : '' };
+  const audio = { m4a: 'm4a', mp3: 'mp3', opus: 'webm', wav: 'wav' }[$('optFormat').value] || 'm4a';
+  $('namePreview').replaceChildren(
+    el('div', { textContent: `Video: ${fileName($('optNameVideo').value, SAMPLE, opts)}.mp4` }),
+    el('div', { textContent: `Audio: ${fileName($('optNameAudio').value, SAMPLE, opts)}.${audio}` })
+  );
+}
+
+// The field buttons add {field} where the cursor was, in the template last used.
+function wireNames() {
+  let target = $('optNameVideo');
+  for (const id of ['optNameVideo', 'optNameAudio']) {
+    $(id).addEventListener('focus', () => (target = $(id)));
+    $(id).addEventListener('input', showNames);
+  }
+  $('optFormat').addEventListener('change', showNames);
+  $('nameFields').replaceChildren(
+    ...Object.entries(NAME_FIELDS).map(([field, about]) =>
+      el('button', {
+        type: 'button',
+        textContent: `{${field}}`,
+        title: `Add ${about}`,
+        onmousedown: (e) => e.preventDefault(), // keep the cursor in the template
+        onclick: () => {
+          const { selectionStart: a, selectionEnd: z, value } = target;
+          target.value = value.slice(0, a) + `{${field}}` + value.slice(z);
+          target.setSelectionRange(a + field.length + 2, a + field.length + 2);
+          target.focus();
+          target.dispatchEvent(new Event('change'));
+          showNames();
+        },
+      })
+    )
+  );
+  showNames();
 }
 
 // ---------- logins from another browser ----------

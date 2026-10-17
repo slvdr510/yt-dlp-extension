@@ -78,9 +78,20 @@ test('a playlist downloads every video with a pause between them', async () => {
   const jobs = Object.values(await b.session('jobs')).filter((j) => j.parent === id).sort((a, x) => a.playlist.index - x.playlist.index);
   assert.deepEqual(jobs.map((j) => j.state), ['done', 'done']);
   const files = (await Promise.all(jobs.map((j) => b.files(j)))).flat();
-  assert.match(files[0], /Test feed\/1 - First clip\.mp4$/);
-  assert.match(files[1], /Test feed\/2 - Second clip\.mp4$/);
+  assert.match(files[0], /Test feed\/First_clip\.mp4$/);
+  assert.match(files[1], /Test feed\/Second_clip\.mp4$/);
   assert.ok(Date.now() - t0 >= 1000, 'paused between videos');
+});
+
+test('a playlist\'s files can be numbered', async () => {
+  await b.settings({ sleepMin: 0, sleepRandom: 0, numberPlaylist: true });
+  const { id } = await b.send({ cmd: 'download', url: `${server.base}/feed.xml`, mode: 'video', playlist: true });
+  await b.job(id, ['done', 'failed', 'cancelled'], 90000);
+  const jobs = Object.values(await b.session('jobs')).filter((j) => j.parent === id).sort((a, x) => a.playlist.index - x.playlist.index);
+  const files = (await Promise.all(jobs.map((j) => b.files(j)))).flat();
+  assert.match(files[0], /Test feed\/1_-_First_clip(?: \(\d+\))?\.mp4$/);
+  assert.match(files[1], /Test feed\/2_-_Second_clip(?: \(\d+\))?\.mp4$/);
+  await b.settings({ numberPlaylist: false });
 });
 
 test('cancel stops a queued playlist', async () => {

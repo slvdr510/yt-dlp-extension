@@ -47,7 +47,7 @@ main { padding: 12px; display: grid; gap: 14px; }
 .meta { min-width: 0; }
 .title { font-weight: 600; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 button, select, input { font: inherit; color: inherit; }
-select, input[type=number] { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
+select, input[type=number], input[type=text] { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
 button { cursor: pointer; }
 .icon { background: none; border: 0; font-size: 16px; padding: 2px 6px; border-radius: 6px; }
 .icon:hover { background: var(--card); }
@@ -63,6 +63,11 @@ button { cursor: pointer; }
 .options label { display: grid; gap: 4px; }
 .options label.check { display: flex; }
 fieldset { border: 1px solid var(--line); border-radius: 8px; display: grid; gap: 8px; padding: 8px 10px; }
+/* Fields to add to a name template, and what the names look like. */
+.fields { display: flex; flex-wrap: wrap; gap: 4px; }
+.fields button { border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--muted); padding: 1px 8px; font-size: 12px; }
+.fields button:hover { color: var(--fg); border-color: var(--muted); }
+.preview { margin: 0; overflow-wrap: anywhere; }
 .pauses label { grid-template-columns: 1fr 70px; align-items: center; }
 #jobs { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .job { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 8px; }

@@ -2,6 +2,11 @@
 export const DEFAULTS = {
   mode: 'auto', // 'auto' (music or video, guessed per video), 'video', 'music'
   maxHeight: 1080, // 0 = best quality, else a cap such as 1080
+  // File names: templates with {title}, {channel}, {artist}, {track}, {date}, {id}.
+  nameVideo: '{title}',
+  nameAudio: '{artist} - {track}',
+  underscores: true, // underscores instead of spaces
+  numberPlaylist: false, // a playlist's files start with their place in it: "01 - Title"
   compatible: false, // prefer H.264 video, which plays on every device
   audioFormat: 'm4a', // music: 'm4a' (original AAC), 'mp3', 'opus' (original), 'wav'
   subtitleTracks: [], // subtitles to embed (ids from subtitleOptions), chosen per download
