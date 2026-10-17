@@ -5,7 +5,6 @@
   "type": "module",
   "devDependencies": {
     "@breezystack/lamejs": "^1.2.7",
-    "@ffmpeg/core": "^0.12.10",
     "playwright": "^1.64.0",
     "pyodide": "^314.0.7"
   },
