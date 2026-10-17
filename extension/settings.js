@@ -1,10 +1,10 @@
 // User settings, with the defaults. Shared by the worker, the engine and the popup.
 export const DEFAULTS = {
   mode: 'auto', // 'auto' (music or video, guessed per video), 'video', 'music'
-  maxHeight: 0, // 0 = best quality, else a cap such as 1080
+  maxHeight: 1080, // 0 = best quality, else a cap such as 1080
   compatible: false, // prefer H.264 video, which plays on every device
   audioFormat: 'm4a', // music: 'm4a' (original AAC), 'mp3', 'opus' (original), 'wav'
-  subtitles: true, // embed the creator's subtitles and the original automatic captions
+  subtitleTracks: [], // subtitles to embed (ids from subtitleOptions), chosen per download
   // Pauses for playlists, so sites don't flag the downloads (yt-dlp's suggested values):
   sleepMin: 10, // seconds between videos, at least…
   sleepRandom: 10, // …plus a random 0 to this many seconds

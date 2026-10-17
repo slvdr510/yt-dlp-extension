@@ -131,8 +131,8 @@ export async function runVideo(job, { settings, signal, report, rules }) {
     }
     if (!tracks.length) throw new Error('The downloaded file has no usable tracks.');
 
-    if (!music && settings.subtitles) {
-      const chosen = chooseTracks(info, settings.subtitleTrack);
+    if (!music && settings.subtitleTracks?.length) {
+      const chosen = chooseTracks(info, settings.subtitleTracks);
       for (let i = 0; i < chosen.length; i++) {
         const t = chosen[i];
         if (i && settings.sleepSubtitles) await sleep(settings.sleepSubtitles, signal);

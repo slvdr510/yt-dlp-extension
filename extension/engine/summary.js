@@ -1,5 +1,5 @@
 // What the popup shows about a URL, worked out from yt-dlp's info dict.
-import { subtitleOptions, defaultSubtitle } from './subs.js';
+import { subtitleOptions } from './subs.js';
 
 const host = (url) => {
   try {
@@ -40,7 +40,7 @@ export function summarize(info) {
     live: !!info.is_live,
     music: isMusic(info),
     heights,
-    subtitles: { options: subtitleOptions(info), default: defaultSubtitle(info) },
+    subtitles: { options: subtitleOptions(info) },
     extractor: info.extractor_key,
   };
 }

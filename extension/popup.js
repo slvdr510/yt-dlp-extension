@@ -15,7 +15,7 @@ const el = (tag, props = {}, children = []) => {
   return e;
 };
 
-const state = { url: '', summary: null, playlist: null, mode: 'video', settings: null };
+const state = { url: '', summary: null, playlist: null, mode: 'video', settings: null, subs: [] };
 
 const formatDuration = (s) => {
   s = Math.round(s || 0);
@@ -28,28 +28,24 @@ const formatSize = (n) => (!n ? '' : n < 1 << 20 ? `${Math.round(n / 1024)} KB` 
 
 // ---------- the current tab ----------
 
+// The popup's own choices become the defaults for next time (and show in Options).
+function remember(key, value, optionId) {
+  state.settings[key] = value;
+  if (optionId) $(optionId).value = value;
+  saveSettings(state.settings);
+}
+
 function setMode(mode) {
   state.mode = mode;
   for (const b of document.querySelectorAll('.seg button')) b.setAttribute('aria-checked', String(b.dataset.mode === mode));
   const video = mode === 'video';
-  // Music swaps quality for the file format in the same place, so nothing moves.
+  // Audio swaps quality for the file format in the same place, so nothing moves.
   $('quality').classList.toggle('hidden', !video);
   $('format').classList.toggle('hidden', video);
-  $('subsRow').classList.toggle('hidden', !state.summary?.subtitles?.options.length);
-  $('subsRow').classList.toggle('invisible', !video);
-  showHint();
-}
-
-const FORMAT_HINT = {
-  m4a: 'The original sound (M4A), with the cover art and song details embedded.',
-  mp3: 'Converted to MP3, which plays everywhere, with the cover art and song details.',
-  opus: 'The original Opus sound in the smallest file (.webm), without cover art.',
-  wav: 'Uncompressed WAV for audio editors: a big file, without cover art.',
-};
-
-function showHint() {
-  const subs = !$('subsRow').classList.contains('hidden') && $('subs').value;
-  $('modeHint').textContent = state.mode === 'video' ? `Best video and sound in one MP4, with ${subs ? 'subtitles and ' : ''}chapters.` : FORMAT_HINT[$('format').value];
+  // Subtitles are for video only: in Audio the row goes and the popup shrinks.
+  $('subsRow').classList.toggle('hidden', !video || !state.summary?.subtitles?.options.length);
+  // The format help is about audio's formats.
+  $('help').classList.toggle('hidden', video);
 }
 
 function showSummary() {
@@ -75,22 +71,46 @@ function showSummary() {
     el('option', { value: '0', textContent: heights[0] ? `Best (${heights[0]}p)` : 'Best' }),
     ...heights.filter((h) => h >= 240).map((h) => el('option', { value: String(h), textContent: `${h}p` }))
   );
-  $('quality').value = String(state.settings.maxHeight && heights.includes(state.settings.maxHeight) ? state.settings.maxHeight : 0);
-  // Subtitles: none, or one language (the video's own by default).
-  const subs = s.subtitles || { options: [] };
-  const groups = { creator: 'Subtitles', auto: 'Automatic captions', translated: 'Auto-translated' };
-  $('subs').replaceChildren(
-    el('option', { value: '', textContent: 'No subtitles' }),
-    ...Object.entries(groups)
-      .map(([group, label]) => [label, subs.options.filter((o) => o.group === group)])
-      .filter(([, options]) => options.length)
-      .map(([label, options]) => el('optgroup', { label }, options.map((o) => el('option', { value: o.id, textContent: o.name }))))
-  );
-  $('subs').value = (state.settings.subtitles && subs.default) || '';
+  // The highest quality up to the cap in the options (1080p by default), else the best.
+  const cap = state.settings.maxHeight;
+  $('quality').value = String((cap && heights.find((h) => h >= 240 && h <= cap)) || 0);
+  // Subtitles: a list of languages, empty to start with.
+  state.subs = [];
+  showSubs();
   $('format').value = state.settings.audioFormat || 'm4a';
   const mode = state.settings.mode === 'auto' ? (s.music ? 'music' : 'video') : state.settings.mode;
   setMode(mode);
 }
+
+// The chosen subtitles as chips, and the menu offering the rest.
+const SUB_GROUPS = { creator: 'Subtitles', auto: 'Automatic captions', translated: 'Auto-translated' };
+function showSubs() {
+  const options = state.summary?.subtitles?.options || [];
+  const chosen = state.subs.map((id) => options.find((o) => o.id === id)).filter(Boolean);
+  $('subsList').replaceChildren(
+    ...chosen.map((o) =>
+      el('span', { className: 'chip' }, [
+        el('span', { textContent: o.name, title: o.name }),
+        el('button', { textContent: '×', title: `Remove ${o.name}`, ariaLabel: `Remove ${o.name}`, onclick: () => ((state.subs = state.subs.filter((id) => id !== o.id)), showSubs()) }),
+      ])
+    )
+  );
+  const left = options.filter((o) => !state.subs.includes(o.id));
+  $('subs').replaceChildren(
+    // A placeholder, not a choice: an empty list is "no subtitles".
+    el('option', { value: '', textContent: left.length ? 'Add subtitles' : 'All added', hidden: true, selected: true }),
+    ...Object.entries(SUB_GROUPS)
+      .map(([group, label]) => [label, left.filter((o) => o.group === group)])
+      .filter(([, list]) => list.length)
+      .map(([label, list]) => el('optgroup', { label }, list.map((o) => el('option', { value: o.id, textContent: o.name }))))
+  );
+  $('subs').disabled = !left.length;
+}
+
+$('subs').onchange = () => {
+  if ($('subs').value) state.subs.push($('subs').value);
+  showSubs();
+};
 
 async function analyze() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -118,10 +138,9 @@ async function analyze() {
   }
 }
 
-$('modeVideo').onclick = () => setMode('video');
-$('modeMusic').onclick = () => setMode('music');
-$('subs').onchange = showHint;
-$('format').onchange = showHint;
+$('modeVideo').onclick = () => (setMode('video'), remember('mode', 'video'));
+$('modeMusic').onclick = () => (setMode('music'), remember('mode', 'music'));
+$('format').onchange = () => remember('audioFormat', $('format').value, 'optFormat');
 $('help').onclick = () => showView('formats');
 
 $('go').onclick = async () => {
@@ -129,7 +148,7 @@ $('go').onclick = async () => {
   try {
     const playlist = state.summary.kind === 'playlist' || document.querySelector('input[name=scope]:checked')?.value === 'playlist';
     // This download's choices (quality, subtitles) without changing the defaults.
-    const overrides = { maxHeight: Number($('quality').value) || 0, subtitles: !!$('subs').value, subtitleTrack: $('subs').value || null, audioFormat: $('format').value };
+    const overrides = { maxHeight: Number($('quality').value) || 0, subtitleTracks: [...state.subs], audioFormat: $('format').value };
     await send('download', { url: state.url, mode: state.mode, playlist, title: playlist ? (state.playlist || state.summary).title : state.summary.title, overrides });
   } catch (e) {
     $('status').textContent = e.message;
@@ -257,9 +276,8 @@ function wireOptions() {
     };
   };
   bind('optQuality', 'maxHeight', (i) => Number(i.value), String);
-  bind('optFormat', 'audioFormat', (i) => i.value);
+  bind('optFormat', 'audioFormat', (i) => ($('format').value = i.value));
   bind('optCompatible', 'compatible', (i) => i.checked);
-  bind('optSubtitles', 'subtitles', (i) => i.checked);
   const seconds = (i) => Math.max(0, Number(i.value) || 0);
   bind('optSleepMin', 'sleepMin', seconds);
   bind('optSleepRandom', 'sleepRandom', seconds);

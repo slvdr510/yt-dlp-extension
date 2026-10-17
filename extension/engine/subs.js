@@ -48,33 +48,20 @@ export function subtitleOptions(info) {
   return out.concat(translated.sort((x, y) => x.name.localeCompare(y.name)));
 }
 
-// The menu's default: the creator's subtitles in the video's language, else the
-// automatic ones in that language, else the creator's first. Null if none.
-export function defaultSubtitle(info) {
-  const options = subtitleOptions(info);
-  const lang = info.language || '';
-  const creator = options.filter((o) => o.group === 'creator');
-  const original = originalAuto(info);
-  return (
-    (lang && creator.find((o) => short(o.id.slice(2)) === short(lang))?.id) ||
-    (original && `a:${original}`) ||
-    creator[0]?.id ||
-    null
-  );
-}
-
-// Which tracks to embed. With `pick` (an id from subtitleOptions), that one, when
-// the video has it. Otherwise every subtitle the creator uploaded, plus the
+// Which tracks to embed. With `picks` (ids from subtitleOptions), those the video
+// has, in that order. Otherwise every subtitle the creator uploaded, plus the
 // automatic captions in the video's own language (not the machine translations).
 // Returns [{ lang, auto, name, format }], the creator's first.
-export function chooseTracks(info, pick = null) {
+export function chooseTracks(info, picks = null) {
   const auto = info.automatic_captions || {};
-  if (pick) {
+  const picked = [];
+  for (const pick of picks ? [picks].flat() : []) {
     const [kind, lang] = [pick.slice(0, 1), pick.slice(2)];
     const formats = kind === 'c' ? info.subtitles?.[lang] : auto[lang];
     const format = pickFormat(formats);
-    if (format) return [{ lang: base(lang), auto: kind === 'a', name: kind === 'a' ? autoName(format.name, base(lang)) : format.name || lang, format }];
+    if (format) picked.push({ lang: base(lang), auto: kind === 'a', name: kind === 'a' ? autoName(format.name, base(lang)) : format.name || lang, format });
   }
+  if (picked.length) return picked;
   const out = [];
   for (const [lang, formats] of Object.entries(info.subtitles || {})) {
     if (lang === 'live_chat') continue;

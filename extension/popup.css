@@ -15,7 +15,6 @@ h2 { font-size: 12px; margin: 0; text-transform: uppercase; letter-spacing: .04e
 main { padding: 12px; display: grid; gap: 14px; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 10px; }
 .hidden { display: none !important; }
-.invisible { visibility: hidden; }
 .muted { color: var(--muted); }
 .small { font-size: 12px; }
 .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -25,10 +24,18 @@ main { padding: 12px; display: grid; gap: 14px; }
 #found > .row, #found > .check { justify-content: center; }
 /* Both control rows share columns, so the menus line up. */
 #found > .controls { display: grid; grid-template-columns: 128px 150px 26px; justify-content: center; align-items: center; gap: 8px; }
-#found > p { margin: 0; text-align: center; min-height: 2.8em; }
 #found .seg, #quality, #format, #subs { height: 32px; }
-#quality, #format, #subs { width: 150px; padding: 0 8px; border-radius: 8px; }
+#quality, #format, #subs { width: 100%; padding: 0 8px; border-radius: 8px; }
+/* The last column is for audio's "?" button: video's menus take it too. */
+#quality, #subs { grid-column: 2 / -1; }
 #subsRow > span { text-align: right; }
+/* The chosen subtitles, under the menu that adds them. */
+.chips { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.chips:empty { display: none; }
+.chip { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 2px 4px 2px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); font-size: 12px; }
+.chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip > button { background: none; border: 0; padding: 0 4px; color: var(--muted); font-size: 14px; line-height: 1; border-radius: 50%; }
+.chip > button:hover { color: var(--fg); }
 .help { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); color: var(--muted); font-weight: 600; padding: 0; }
 .help:hover { color: var(--fg); border-color: var(--muted); }
 .formats { width: 100%; border-collapse: collapse; }
@@ -48,8 +55,9 @@ button { cursor: pointer; }
 .link:hover { color: var(--fg); text-decoration: underline; }
 .primary { background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 8px; padding: 10px; font-weight: 600; }
 .primary:disabled { opacity: .55; cursor: default; }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.seg button { background: var(--bg); border: 0; padding: 5px 14px; }
+/* Equal halves, each label centered both ways. */
+.seg { display: grid; grid-auto-columns: 1fr; grid-auto-flow: column; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { display: flex; align-items: center; justify-content: center; background: var(--bg); border: 0; padding: 0 8px; }
 .seg button[aria-checked=true] { background: var(--fg); color: var(--bg); }
 .check, .radio { display: flex; gap: 6px; align-items: flex-start; }
 .options label { display: grid; gap: 4px; }

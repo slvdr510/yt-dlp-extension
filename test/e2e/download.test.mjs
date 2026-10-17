@@ -30,8 +30,8 @@ test('a video downloads as one MP4', async () => {
   assert.equal(decodeErrors(files[0]), '');
 });
 
-test('subtitles from the page are embedded', async () => {
-  const { job, files } = await download('subs.html', { mode: 'video' });
+test('the chosen subtitles are embedded', async () => {
+  const { job, files } = await download('subs.html', { mode: 'video', overrides: { subtitleTracks: ['c:en'] } });
   assert.equal(job.state, 'done', job.error);
   const p = probe(files[0]);
   assert.deepEqual(p.streams.filter((s) => s.type === 'subtitle').map((s) => [s.codec, s.lang]), [['mov_text', 'eng']]);
@@ -129,7 +129,7 @@ test('the popup opens without errors', async () => {
 const online = { skip: !process.env.ONLINE && 'set ONLINE=1 to run' };
 
 test('YouTube video: best quality, subtitles, chapters-ready MP4 (online)', online, async () => {
-  const { id } = await b.send({ cmd: 'download', url: 'https://www.youtube.com/watch?v=jNQXAC9IVRw', mode: 'auto' });
+  const { id } = await b.send({ cmd: 'download', url: 'https://www.youtube.com/watch?v=jNQXAC9IVRw', mode: 'auto', overrides: { subtitleTracks: ['c:en', 'c:de'] } });
   const job = await b.job(id, ['done', 'failed', 'cancelled'], 180000);
   assert.equal(job.state, 'done', job.error);
   const [file] = await b.files(job);

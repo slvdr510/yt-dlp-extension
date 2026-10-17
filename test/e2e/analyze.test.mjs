@@ -42,5 +42,4 @@ test('YouTube (online)', { skip: !process.env.ONLINE && 'set ONLINE=1 to run' },
   assert.equal(r.summary.music, true);
   assert.ok(r.summary.heights[0] >= 1080);
   assert.ok(r.summary.subtitles.options.some((o) => o.id === 'c:en'));
-  assert.equal(r.summary.subtitles.default, 'c:en');
 });

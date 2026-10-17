@@ -30,7 +30,7 @@
       <div class="row controls">
         <div class="seg" role="radiogroup" aria-label="What to download">
           <button id="modeVideo" role="radio" data-mode="video">Video</button>
-          <button id="modeMusic" role="radio" data-mode="music">Music</button>
+          <button id="modeMusic" role="radio" data-mode="music">Audio</button>
         </div>
         <select id="quality" aria-label="Quality"></select>
         <select id="format" class="hidden" aria-label="File format">
@@ -41,8 +41,11 @@
         </select>
         <button id="help" class="help" title="Which format should I pick?" aria-label="Which format should I pick?">?</button>
       </div>
-      <label id="subsRow" class="row controls"><span class="muted">Subtitles</span><select id="subs" aria-label="Subtitles"></select></label>
-      <p id="modeHint" class="muted small"></p>
+      <div id="subsRow" class="row controls">
+        <span class="muted">Subtitles</span>
+        <select id="subs" aria-label="Add subtitles"></select>
+        <div id="subsList" class="chips" aria-label="Chosen subtitles"></div>
+      </div>
       <button id="go" class="primary">Download</button>
     </div>
   </section>
@@ -55,7 +58,7 @@
 
 <main id="view-formats" class="hidden">
   <section class="card">
-    <p class="small">Video is always saved as <b>MP4</b>: it plays everywhere and holds the subtitles, chapters and cover. For <b>Music</b>, pick the file type:</p>
+    <p class="small">Video is always saved as <b>MP4</b>: it plays everywhere and holds the subtitles, chapters and cover. For <b>Audio</b>, pick the file type:</p>
     <table class="formats small">
       <thead><tr><th>Format</th><th>Pick it when</th><th>Keep in mind</th></tr></thead>
       <tbody>
@@ -80,7 +83,7 @@
         <option value="480">Up to 480p</option>
       </select>
     </label>
-    <label>When it’s music, save it as
+    <label>Save audio as
       <select id="optFormat">
         <option value="m4a">M4A (original sound)</option>
         <option value="mp3">MP3 (plays everywhere)</option>
@@ -89,7 +92,6 @@
       </select>
     </label>
     <label class="check"><input id="optCompatible" type="checkbox"> Prefer H.264 video (plays on every device; the best quality is often AV1 or VP9)</label>
-    <label class="check"><input id="optSubtitles" type="checkbox"> Embed subtitles: the creator’s, plus the automatic ones in the video’s language</label>
     <p class="muted small">Logged-in downloads reach age-restricted and members-only videos, but heavy downloading with an account can get it flagged.</p>
     <fieldset id="login">
       <legend>Log in with another browser</legend>
