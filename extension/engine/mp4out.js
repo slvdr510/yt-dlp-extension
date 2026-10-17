@@ -68,7 +68,7 @@ export async function readTracks(blob, index = null) {
         const t = byId.get(frag.id);
         if (!t) continue;
         if (!firstTime.has(t.id) && frag.time !== null) firstTime.set(t.id, frag.time);
-        t.samples.push(...frag.samples);
+        for (const s of frag.samples) t.samples.push(s);
       }
     }
     for (const t of tracks) t.start = (firstTime.get(t.id) || 0) / t.timescale;
@@ -205,9 +205,18 @@ const u64 = (n) => {
   view(b).setBigUint64(0, BigInt(Math.round(n)));
   return b;
 };
-const i32 = (n) => {
-  const b = new Uint8Array(4);
-  view(b).setInt32(0, n);
+// Many big-endian integers in one buffer: sample tables can have more entries than
+// a call takes arguments. setUint32 wraps negative numbers (ctts offsets) as int32.
+const u32s = (values) => {
+  const b = new Uint8Array(values.length * 4);
+  const v = view(b);
+  values.forEach((n, i) => v.setUint32(i * 4, n));
+  return b;
+};
+const u64s = (values) => {
+  const b = new Uint8Array(values.length * 8);
+  const v = view(b);
+  values.forEach((n, i) => v.setBigUint64(i * 8, BigInt(Math.round(n))));
   return b;
 };
 const str = (s) => new TextEncoder().encode(s);
@@ -353,18 +362,18 @@ export function writeMp4({ tracks, meta = {}, chapters = [], audioOnly = false, 
     const sameSize = sizes.every((x) => x === sizes[0]);
     const stbl = box('stbl',
       t.stsd,
-      full('stts', 0, 0, u32(stts.length), ...stts.flatMap(([c, d]) => [u32(c), u32(d)])),
+      full('stts', 0, 0, u32(stts.length), u32s(stts.flat())),
       ...(hasCto ? [full('ctts', negative ? 1 : 0, 0, ...(() => {
         const r = runs(t.samples.map((s) => s.cto));
-        return [u32(r.length), ...r.flatMap(([c, o]) => [u32(c), i32(o)])];
+        return [u32(r.length), u32s(r.flat())];
       })())] : []),
       ...(t.samples.every((s) => s.sync) ? [] : [full('stss', 0, 0, ...(() => {
         const n = t.samples.map((s, i) => (s.sync ? i + 1 : 0)).filter(Boolean);
-        return [u32(n.length), ...n.map(u32)];
+        return [u32(n.length), u32s(n)];
       })())]),
-      full('stsc', 0, 0, u32(stsc.length), ...stsc.flatMap(([first, per]) => [u32(first), u32(per), u32(1)])),
-      full('stsz', 0, 0, u32(sameSize ? sizes[0] || 0 : 0), u32(sizes.length), ...(sameSize ? [] : sizes.map(u32))),
-      big ? full('co64', 0, 0, u32(tc.length), ...tc.map((c) => u64(offsets.get(c)))) : full('stco', 0, 0, u32(tc.length), ...tc.map((c) => u32(offsets.get(c)))));
+      full('stsc', 0, 0, u32(stsc.length), u32s(stsc.flatMap(([first, per]) => [first, per, 1]))),
+      full('stsz', 0, 0, u32(sameSize ? sizes[0] || 0 : 0), u32(sizes.length), ...(sameSize ? [] : [u32s(sizes)])),
+      big ? full('co64', 0, 0, u32(tc.length), u64s(tc.map((c) => offsets.get(c)))) : full('stco', 0, 0, u32(tc.length), u32s(tc.map((c) => offsets.get(c)))));
     return box('trak', tkhd, ...(elst ? [elst] : []), box('mdia', mdhd, hdlr, box('minf', mediaHeader, dinf, stbl)));
   };
 

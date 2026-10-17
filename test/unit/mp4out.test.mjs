@@ -113,3 +113,13 @@ test('subtitle text and timing come back out', async () => {
   assert.match(srt, /00:00:00,500 --> 00:00:02,000\r?\nHello, ñandú/);
   assert.match(srt, /00:00:03,000 --> 00:00:05,250\r?\nLine one\r?\nLine two/);
 });
+
+test('long tracks: sample tables bigger than a call takes arguments', async () => {
+  // About 40 minutes at 60 fps, from the B-frames video's samples over and over.
+  const [v] = (await withBlob('bframes.mp4')).filter((t) => t.kind === 'vide');
+  const samples = Array.from({ length: 150_000 }, (_, i) => v.samples[i % v.samples.length]);
+  const blob = writeMp4({ tracks: [{ ...v, samples }] });
+  const [back] = await readTracks(blob);
+  assert.equal(back.samples.length, 150_000);
+  assert.deepEqual(back.samples.slice(0, 192).map((s) => s.size), v.samples.map((s) => s.size));
+});
