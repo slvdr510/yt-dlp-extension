@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "yt-dlp-chrome",
   "version": "0.1.0",
-  "description": "Download videos, music and subtitles from YouTube and 1000+ sites with yt-dlp, running inside your browser.",
+  "description": "Download videos, music and subtitles from YouTube and the other sites yt-dlp supports, running inside your browser.",
   "minimum_chrome_version": "137",
   "permissions": [
     "downloads",

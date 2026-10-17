@@ -1,6 +1,6 @@
 # yt-dlp-chrome
 
-A Chrome extension that downloads videos, audio and subtitles from YouTube and the 1,000+ other sites [yt-dlp](https://github.com/yt-dlp/yt-dlp) supports. yt-dlp runs **inside the browser**: there's nothing else to install.
+A Chrome extension that downloads videos, audio and subtitles from YouTube and the [other sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) [yt-dlp](https://github.com/yt-dlp/yt-dlp) supports. yt-dlp runs **inside the browser**: there's nothing else to install.
 
 ## What it does
 
@@ -129,7 +129,7 @@ These keep sites from flagging the downloads; raise them for very long playlists
 
 **Yes, it's the real yt-dlp.** The extension ships the official, unmodified yt-dlp package from PyPI (the version is in `versions.json`; `npm run vendor` downloads it and checks it against PyPI's checksum). It runs in [Pyodide](https://pyodide.org), Python compiled to WebAssembly, in an offscreen document of the extension.
 
-**What yt-dlp does: the extraction.** It reads the page, solves YouTube's JavaScript challenges, picks the formats and returns the title, formats, subtitles, chapters, thumbnail and the rest: what `yt-dlp --dump-json` would give. So all of its extractors for 1,000+ sites work.
+**What yt-dlp does: the extraction.** It reads the page, solves YouTube's JavaScript challenges, picks the formats and returns the title, formats, subtitles, chapters, thumbnail and the rest: what `yt-dlp --dump-json` would give. So all of its extractors work, for every site it supports.
 
 **What's adapted so it runs in a browser** (`extension/engine/glue.py`):
 
