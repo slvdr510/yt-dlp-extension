@@ -152,6 +152,13 @@ def extract(url, options_json):
         return json.dumps({'error': str(e), 'log': log.lines})
 
 
+def has_extractor(url):
+    """Whether one of yt-dlp's site extractors takes `url` (not the generic one,
+    which takes any page). Only matches the URL: nothing is fetched."""
+    from yt_dlp.extractor import gen_extractor_classes
+    return any(ie.ie_key() != 'Generic' and ie.suitable(url) for ie in gen_extractor_classes())
+
+
 IMPORT_DIR = '/import'
 
 

@@ -26,12 +26,6 @@ async function ensureEngine() {
   await creating;
 }
 
-// yt-dlp takes a few seconds to load: on a YouTube video it starts loading right
-// away, so it's ready when the popup opens.
-const YOUTUBE_VIDEO = /^https:\/\/(www\.|m\.|music\.)?youtube\.com\/(watch|shorts\/|live\/)/;
-chrome.tabs.onUpdated.addListener((tabId, { url }) => {
-  if (url && YOUTUBE_VIDEO.test(url)) ensureEngine().catch(() => {});
-});
 
 async function toEngine(msg) {
   await ensureEngine();
@@ -58,6 +52,47 @@ async function toEngine(msg) {
     return changed;
   });
 })();
+
+// ---------- finding videos ----------
+
+// Each page is read as it opens, so the popup has it ready and the toolbar icon
+// shows how many videos there are (1, or a playlist's count). Only on sites yt-dlp
+// has an extractor for: reading any other page would mean fetching it again.
+const detected = makeStore('detected'); // tab id -> { url, summary, playlist }
+const reading = new Map(); // tab id -> the URL being read
+chrome.action.setBadgeBackgroundColor({ color: '#d92d20' });
+chrome.action.setBadgeTextColor({ color: '#ffffff' });
+
+async function detect(tabId, url) {
+  reading.set(tabId, url);
+  const current = () => reading.get(tabId) === url;
+  await detected.update((s) => s[tabId] && delete s[tabId]);
+  chrome.action.setBadgeText({ tabId, text: '' }).catch(() => {});
+  if (!/^https?:/.test(url)) return;
+  try {
+    const settings = await loadSettings();
+    const { summary, error } = await toEngine({ cmd: 'detect', url, settings });
+    if (!current() || error || !summary) return;
+    // A video in a playlist: the playlist too, for the popup's question. Not for
+    // YouTube Mixes (list=RD…): they're endless radio lists, not playlists.
+    let playlist = null;
+    const list = new URL(url).searchParams.get('list') || '';
+    if (summary.kind === 'video' && list && !list.startsWith('RD')) {
+      const res = await toEngine({ cmd: 'analyze', url, playlist: true, settings }).catch(() => null);
+      if (res?.summary?.kind === 'playlist') playlist = res.summary;
+    }
+    if (!current()) return;
+    await detected.update((s) => (s[tabId] = { url, summary, playlist }));
+    const count = summary.kind === 'playlist' ? summary.count : 1;
+    chrome.action.setBadgeText({ tabId, text: count > 999 ? '999+' : String(count || '') }).catch(() => {});
+  } catch (e) {}
+}
+
+chrome.tabs.onUpdated.addListener((tabId, { url }) => url && detect(tabId, url));
+chrome.tabs.onRemoved.addListener((tabId) => {
+  reading.delete(tabId);
+  detected.update((s) => s[tabId] && delete s[tabId]);
+});
 
 // ---------- saving ----------
 

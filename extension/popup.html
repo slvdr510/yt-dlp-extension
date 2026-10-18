@@ -14,18 +14,14 @@
 
 <main id="view-main">
   <section id="card" class="card">
-    <p id="status" class="muted">Reading this page…</p>
-    <div id="found" class="hidden">
+    <div id="found">
       <div class="media">
-        <img id="thumb" alt="">
+        <div class="thumb"><img id="thumb" alt=""></div>
         <div class="meta">
           <div id="title" class="title"></div>
           <div id="sub" class="muted small"></div>
+          <div id="status" class="bad small hidden"></div>
         </div>
-      </div>
-      <div id="scope" class="row hidden">
-        <label class="radio"><input type="radio" name="scope" value="video" checked> This video</label>
-        <label class="radio"><input type="radio" name="scope" value="playlist"> <span id="scopeList">Whole playlist</span></label>
       </div>
       <div class="row controls">
         <div class="seg" role="radiogroup" aria-label="What to download">
@@ -50,10 +46,13 @@
     </div>
   </section>
 
-  <section id="downloads" class="hidden">
-    <div class="row between"><h2>Downloads</h2><button id="clear" class="link hidden">Clear finished</button></div>
-    <ul id="jobs"></ul>
+  <section id="choose" class="hidden">
+    <p class="ask">What do you want to download?</p>
+    <button id="pickVideo" class="pick">This video</button>
+    <button id="pickList" class="pick">Whole playlist <span id="pickCount"></span></button>
   </section>
+
+  <section id="jobs" class="hidden"></section>
 </main>
 
 <main id="view-formats" class="hidden">

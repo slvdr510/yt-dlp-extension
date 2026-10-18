@@ -8,20 +8,23 @@
 }
 * { box-sizing: border-box; }
 html { overflow-x: hidden; }
-body { margin: 0; width: 380px; max-height: 590px; background: var(--bg); color: var(--fg); font: 13px/1.4 system-ui, sans-serif; }
-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+/* One size for every state, the download menu's (set from popup.js): what's longer scrolls inside. */
+body { margin: 0; width: 380px; height: 266px; display: flex; flex-direction: column; background: var(--bg); color: var(--fg); font: 13px/1.4 system-ui, sans-serif; }
+header { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
 h1 { font-size: 14px; margin: 0; flex: 1; }
-h2 { font-size: 12px; margin: 0; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
-main { padding: 12px; display: grid; gap: 14px; }
-.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 10px; }
+/* The space for a scrollbar is kept on both sides, so nothing moves when one shows up. */
+main { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable both-edges; scrollbar-width: thin; padding: 12px 4px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; }
+/* The menu sits in the middle of the space it has. */
+#view-main { display: flex; flex-direction: column; }
+#card { margin-block: auto; }
+.card { display: grid; gap: 10px; }
 .hidden { display: none !important; }
 .muted { color: var(--muted); }
 .small { font-size: 12px; }
 .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.between { justify-content: space-between; }
 .media { display: flex; gap: 12px; align-items: center; }
-#found { display: grid; gap: 14px; }
-#found > .row, #found > .check { justify-content: center; }
+/* As wide as the control rows, so the picture, menus and button line up. */
+#found { display: grid; gap: 10px; width: 320px; margin-inline: auto; }
 /* Both control rows share columns, so the menus line up. */
 #found > .controls { display: grid; grid-template-columns: 128px 150px 26px; justify-content: center; align-items: center; gap: 8px; }
 #found .seg, #quality, #format, #subs { height: 32px; }
@@ -43,9 +46,12 @@ main { padding: 12px; display: grid; gap: 14px; }
 .formats thead th { border-top: 0; color: var(--muted); font-weight: 500; padding-top: 0; }
 .formats tbody th { white-space: nowrap; }
 .formats .tag { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
-.media img { width: 112px; height: 63px; object-fit: cover; border-radius: 6px; background: var(--bar); flex: none; }
+.media .thumb { width: 112px; height: 63px; border-radius: 6px; overflow: hidden; background: var(--bar); flex: none; }
+.media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* No picture (yet): its place in grey, light or dark with the system. */
+.media img.empty { visibility: hidden; }
 .meta { min-width: 0; }
-.title { font-weight: 600; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.title { font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 button, select, input { font: inherit; color: inherit; }
 select, input[type=number], input[type=text] { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
 button { cursor: pointer; }
@@ -55,11 +61,13 @@ button { cursor: pointer; }
 .link:hover { color: var(--fg); text-decoration: underline; }
 .primary { background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 8px; padding: 10px; font-weight: 600; }
 .primary:disabled { opacity: .55; cursor: default; }
+#found :is(button, select, input):disabled { cursor: default; }
+#found .seg:has(:disabled), #found select:disabled, #subsRow:has(#subs:disabled) > span, .chip:has(:disabled), #found .help:disabled { opacity: .55; }
 /* Equal halves, each label centered both ways. */
 .seg { display: grid; grid-auto-columns: 1fr; grid-auto-flow: column; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .seg button { display: flex; align-items: center; justify-content: center; background: var(--bg); border: 0; padding: 0 8px; }
 .seg button[aria-checked=true] { background: var(--fg); color: var(--bg); }
-.check, .radio { display: flex; gap: 6px; align-items: flex-start; }
+.check { display: flex; gap: 6px; align-items: flex-start; }
 .options label { display: grid; gap: 4px; }
 .options label.check { display: flex; }
 fieldset { border: 1px solid var(--line); border-radius: 8px; display: grid; gap: 8px; padding: 8px 10px; }
@@ -69,21 +77,45 @@ fieldset { border: 1px solid var(--line); border-radius: 8px; display: grid; gap
 .fields button:hover { color: var(--fg); border-color: var(--muted); }
 .preview { margin: 0; overflow-wrap: anywhere; }
 .pauses label { grid-template-columns: 1fr 70px; align-items: center; }
-#jobs { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.job { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 8px; }
-.job.child { margin-left: 14px; }
-.job .top { display: flex; gap: 10px; align-items: flex-start; }
-.job .name { flex: 1; min-width: 0; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.job .top .link { flex: none; padding-top: 1px; }
-.job .status { display: flex; gap: 8px; align-items: baseline; font-size: 12px; }
-.job .detail { flex: 1; min-width: 0; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.job .pct { font-weight: 600; font-variant-numeric: tabular-nums; }
-.job .state { color: var(--muted); flex: none; }
-.job .state.done { color: var(--ok); }
-.job .state.failed { color: var(--bad); }
-.job .error { color: var(--bad); font-size: 12px; }
-.job .note { color: var(--muted); font-size: 12px; }
+/* The video-or-playlist question, filling the popup. */
+#choose { flex: 1; width: 320px; margin-inline: auto; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+#choose .ask { margin: 0 0 4px; text-align: center; font-weight: 600; }
+.pick { height: 52px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); font-weight: 600; font-size: 14px; }
+.pick:hover { border-color: var(--fg); }
+.pick span { color: var(--muted); font-weight: 400; }
+/* A download fills the popup, centered, as wide as the menu. */
+#jobs { flex: 1; display: flex; flex-direction: column; gap: 24px; }
+.task { flex: 1; width: 320px; margin-inline: auto; display: flex; flex-direction: column; gap: 10px; }
+.task .body { margin-block: auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.task .head { display: flex; gap: 16px; align-items: center; }
+.task .info { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.task .info .name { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 2px; }
+.task .info .detail:empty { display: none; }
+.task .info .state, .task .info .detail { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task .error { color: var(--bad); font-size: 12px; }
+.task .note { color: var(--muted); font-size: 12px; }
+.task .secondary { flex: none; align-self: center; }
+/* The ring: a conic fill with its middle cut out, the label inside. */
+.ring { flex: none; width: 68px; height: 68px; border-radius: 50%; display: grid; place-items: center; position: relative;
+  background: conic-gradient(var(--accent) calc(var(--p) * 1%), var(--bar) 0); }
+.ring::before { content: ''; position: absolute; inset: 6px; border-radius: 50%; background: var(--bg); }
+.ring > span { position: relative; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ring.busy { animation: spin 1.2s linear infinite; }
+.ring.busy > span { animation: spin 1.2s linear infinite reverse; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ring.busy, .ring.busy > span { animation: none; } }
+/* A playlist's video on its way, under the whole list's progress. */
+.current { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 10px 12px; border-radius: 10px; background: var(--card); }
+.current .top { display: flex; gap: 10px; align-items: baseline; }
+.current .name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.current .pct { flex: none; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.current .status { display: flex; gap: 8px; align-items: baseline; font-size: 12px; }
+.current .detail { flex: 1; min-width: 0; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.current .link { flex: none; }
+.secondary { background: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 18px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.secondary:hover { color: var(--fg); border-color: var(--muted); }
 .bar { height: 6px; background: var(--bar); border-radius: 3px; overflow: hidden; }
+.bar.big { height: 8px; border-radius: 4px; }
 .bar > div { height: 100%; background: var(--accent); width: 0; border-radius: 3px; transition: width .3s; }
 .bar.busy > div { width: 30%; animation: busy 1.2s ease-in-out infinite; }
 @keyframes busy { from { transform: translateX(-100%); } to { transform: translateX(340%); } }

@@ -2,7 +2,7 @@
 // keep going when the popup closes. Jobs run one at a time; playlists become one
 // job per video, with a pause between them. Saving and the job list for the
 // popup are the worker's.
-import { ytdlp, setRequestGap, importCookies } from './engine/ytdlp.js';
+import { ytdlp, setRequestGap, importCookies, hasExtractor } from './engine/ytdlp.js';
 import { summarize } from './engine/summary.js';
 import { runVideo, extractWithLogin, videoSpec, sleep } from './engine/job.js';
 import { cleanName } from './engine/names.js';
@@ -33,8 +33,10 @@ async function cachedExtract(url, options, settings) {
   const key = JSON.stringify([url, options, settings.cookies?.length || 0]);
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.info;
-  const info = await extractWithLogin(url, options, settings);
+  // Kept while it runs too: the popup asking for a page already being read waits for that.
+  const info = extractWithLogin(url, options, settings);
   cache.set(key, { at: Date.now(), info });
+  info.catch(() => cache.get(key)?.info === info && cache.delete(key));
   return info;
 }
 
@@ -116,6 +118,11 @@ const handlers = {
   async analyze({ url, playlist, settings }) {
     const info = await cachedExtract(url, { format: videoSpec(settings), playlist: !!playlist }, settings);
     return { summary: summarize(info) };
+  },
+  // A page read on its own (for the toolbar badge): only on sites yt-dlp knows.
+  async detect({ url, settings }) {
+    if (!(await hasExtractor(url))) return { summary: null };
+    return handlers.analyze({ url, settings });
   },
   async enqueue({ job }) {
     queue.push(job);

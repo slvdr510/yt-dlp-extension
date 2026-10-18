@@ -146,6 +146,17 @@ async function extractNow(url, { format, playlist, signal, cookies }) {
   return out.info;
 }
 
+// Whether a site extractor takes the URL (see has_extractor in glue.py).
+export function hasExtractor(url) {
+  const run = extracting.then(async () => {
+    const { py } = await ytdlp();
+    py.globals.set('_url', url);
+    return !!py.runPython('has_extractor(_url)');
+  });
+  extracting = run.catch(() => {});
+  return run;
+}
+
 // yt-dlp errors start with "ERROR: [extractor] id: ".
 const cleanError = (msg) => msg.replace(/^ERROR:\s*/, '').replace(/^\[[^\]]+\]\s*[^:]+:\s*/, '');
 
